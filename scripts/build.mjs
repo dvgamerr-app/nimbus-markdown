@@ -71,7 +71,10 @@ async function buildVendor () {
   step('mathjax')
   const mj = mod('mathjax/es5')
   await mkdir(vendor('mathjax'), {recursive: true})
-  await cp(join(mj, 'tex-mml-chtml.js'), vendor('mathjax/tex-mml-chtml.js'))
+  // Chrome Web Store rejects MV3 packages that mention remote code URLs. MathJax's speech-rule-engine only
+  // fetches these from jsDelivr for speech/IE fallbacks, which we never use, so drop the host.
+  const mathjax = (await read(join(mj, 'tex-mml-chtml.js'))).replaceAll('https://cdn.jsdelivr.net/npm/', '')
+  await writeFile(vendor('mathjax/tex-mml-chtml.js'), mathjax)
   await copyDir(join(mj, 'input/tex/extensions'), vendor('mathjax/extensions'), (n) => n.endsWith('.js'))
   await copyDir(join(mj, 'output/chtml/fonts/woff-v2'), vendor('mathjax/fonts'), (n) => n.endsWith('.woff'))
 
