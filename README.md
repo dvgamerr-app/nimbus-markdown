@@ -31,7 +31,7 @@ An interactive Markdown viewer for Chrome. Open any `.md` file and read it as a 
 
 ## Why Nimbus
 
-- **Diagrams are interactive, not pictures.** Fullscreen any Mermaid diagram to pan and zoom it. Diagrams are compiled to crisp SVG by [Ondine](https://ondine.sh) and follow your light or dark theme.
+- **Diagrams are interactive, not pictures.** Fullscreen any Mermaid diagram to zoom, focus a node and watch its links light up, and play sequences, state machines, journeys and timelines step by step. Diagrams are compiled to crisp SVG by [Ondine](https://ondine.sh) and follow your light or dark theme.
 - **Built for the docs developers read every day.** README files, design notes, architecture and the Markdown your AI coding agent writes, opened straight from disk.
 - **Your file stays on your machine.** Rendering happens in the browser. Local files need one switch, websites only work where you allow them. See the [privacy policy](PRIVACY.md).
 - **Free and open source.** MIT licensed, a maintained fork of Markdown Viewer by Simeon Velichkov.
