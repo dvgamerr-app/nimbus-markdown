@@ -47,6 +47,13 @@ var mmd = (() => {
     '--ondine-stroke': '1px',
     '--ondine-radius': '6px',
     '--ondine-font': sans,
+    // the design skin in content/index.css reads the rest of the tokens from here
+    '--mmd-mono': mono,
+    '--mmd-soft': t.soft,
+    '--mmd-paper2': t.paper2,
+    '--mmd-rule': t.ruleSolid,
+    '--mmd-ink-rgb': t.inkRgb,
+    '--mmd-accent-tint': t.accentTint,
     ...[t.accent, ...t.series, t.muted, t.soft].reduce((all, color, i) => (all[`--ondine-series-${i + 1}`] = color, all), {})
   })
 
@@ -55,7 +62,11 @@ var mmd = (() => {
     exit: '<path d="M6 2v4H2M14 6h-4V2M10 14v-4h4M2 10h4v4"/>',
     zoomIn: '<path d="M8 3v10M3 8h10"/>',
     zoomOut: '<path d="M3 8h10"/>',
-    reset: '<path d="M3 8a5 5 0 1 0 1.5-3.5M3 2v3h3"/>'
+    reset: '<path d="M3 8a5 5 0 1 0 1.5-3.5M3 2v3h3"/>',
+    play: '<path d="M5 3l8 5-8 5z"/>',
+    pause: '<path d="M5 3v10M11 3v10"/>',
+    prev: '<path d="M10 3L5 8l5 5"/>',
+    next: '<path d="M6 3l5 5-5 5"/>'
   }
   var icon = (name) =>
     `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`
@@ -85,6 +96,519 @@ var mmd = (() => {
     if (e.key === 'Escape') fullscreen(pre, false)
   })
 
+  var NS = 'http://www.w3.org/2000/svg'
+  var dark = () => document.documentElement.classList.contains('_mermaid-dark')
+  var calm = () => !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  // links out of the focused node are orange, links into it are blue
+  var lit = (dir) => (dir === 'in' ? (dark() ? '#79b1f9' : '#2e5aa8') : dark() ? '#79b1f9' : '#eb6c36')
+
+  // the comet: a streak that travels along a line in its drawn direction, one-shot for a playing step, looping
+  // while a node stays focused. Stacked dashes share one head but differ in length, so the streak thins out behind
+  // a bright core; each dash is stroked with its own gradient, clear at the tail and solid at the head
+  var comet = [['glow', 1], ['tail', 1], ['body', 0.75], ['head', 0.5], ['core', 0.3]]
+  var flowSeq = 0
+  // a long streak, about half the line, between 80px and 260px but never longer than a short line
+  var streakSpan = (length) => Math.min(length * 0.8, Math.max(80, Math.min(260, length * 0.5)))
+  var lengthOf = (el) => {
+    try { return el.getTotalLength() } catch (err) { return 0 }
+  }
+  var fadeOf = (part, defs) => {
+    var fade = document.createElementNS(NS, 'linearGradient')
+    fade.id = 'mmd-flow-fade-' + ++flowSeq
+    fade.setAttribute('class', 'mmd-flow-' + part + '-fade')
+    fade.setAttribute('gradientUnits', 'userSpaceOnUse')
+    ;[[0, 0], [1, 1]].forEach(([offset, opacity]) => {
+      var stop = document.createElementNS(NS, 'stop')
+      stop.setAttribute('offset', offset)
+      stop.setAttribute('stop-opacity', opacity)
+      fade.appendChild(stop)
+    })
+    defs.appendChild(fade)
+    return fade
+  }
+  // the copy of the line that carries one dash of the comet
+  var dashOf = (el, part, fade, dash) => {
+    var line = el.cloneNode(false)
+    ;['id', 'style', 'class', 'stroke-dasharray', 'data-mmd-seq'].forEach((name) => line.removeAttribute(name))
+    line.setAttribute('class', 'mmd-flow-' + part)
+    line.style.setProperty('stroke', 'url(#' + fade.id + ')', 'important')
+    line.style.strokeDasharray = dash
+    return line
+  }
+  // the line sampled once into at most 256 points: asking the path on every frame stalls a large diagram
+  var sampled = (el, length) => {
+    var pitch = Math.max(2, length / 256)
+    var count = Math.ceil(length / pitch)
+    var samples = null
+    return (d) => {
+      samples = samples || Array.from({length: count + 1}, (_, k) => el.getPointAtLength(Math.min(k * pitch, length)))
+      var i = Math.min(Math.floor(d / pitch), count - 1)
+      var a = samples[i]
+      var b = samples[i + 1]
+      var f = (d - i * pitch) / Math.min(pitch, length - i * pitch)
+      return {x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f}
+    }
+  }
+  // a point on the line, carried straight on past either end so the gradient keeps its span there
+  var carried = (point, length) => (d) => {
+    var clamped = Math.max(0, Math.min(length, d))
+    var p = point(clamped)
+    if (clamped === d) return p
+    var q = point(d < 0 ? Math.min(length, 1) : Math.max(0, length - 1))
+    var dx = p.x - q.x
+    var dy = p.y - q.y
+    var n = Math.hypot(dx, dy) || 1
+    var past = Math.abs(d - clamped)
+    return {x: p.x + (dx / n) * past, y: p.y + (dy / n) * past}
+  }
+  var ease = (t) => (1 - Math.cos(Math.PI * t)) / 2
+  var LOOP = 2400
+  // reverse runs it from the end of the path back to the start, over takes the clock for a one-shot
+  var flow = (line, dir, {delay = 0, loop = false, reverse = false, over = 1400, color = ''} = {}) => {
+    var group = document.createElementNS(NS, 'g')
+    group.setAttribute('class', 'mmd-flow')
+    group.dataset.dir = dir
+    color && group.style.setProperty('--c', color)
+    var length = lengthOf(line)
+    if (!length || calm()) return group
+    var span = streakSpan(length)
+    var defs = document.createElementNS(NS, 'defs')
+    group.appendChild(defs)
+    line.parentNode.appendChild(group)
+    var layers = comet.map(([part, share]) => {
+      var fade = fadeOf(part, defs)
+      var len = span * share
+      var dash = dashOf(line, part, fade, len + ' ' + (length + span) * 2)
+      group.appendChild(dash)
+      return {dash, fade, len}
+    })
+    var at = carried(sampled(line, length), length)
+    // dashoffset and gradient both follow the head; the streak enters from before the source and drains wholly
+    // into the target
+    var duration = loop ? LOOP : over
+    var start = performance.now() + delay * 1000
+    var frame = (now) => {
+      if (!group.isConnected) return
+      var t = Math.max(0, now - start) / duration
+      if (!loop && t >= 1) return group.remove()
+      var run = ease(loop ? t % 1 : t)
+      var head = reverse ? length - run * (length + span) : run * (length + span)
+      var to = at(head)
+      layers.forEach(({dash, fade, len}) => {
+        var from = at(reverse ? head + len : head - len)
+        dash.style.strokeDashoffset = -(reverse ? head : head - len)
+        fade.setAttribute('x1', from.x)
+        fade.setAttribute('y1', from.y)
+        fade.setAttribute('x2', to.x)
+        fade.setAttribute('y2', to.y)
+      })
+      requestAnimationFrame(frame)
+    }
+    frame(performance.now())
+    return group
+  }
+
+  // which ends of a line carry an arrowhead: a marker drawn near its first or last point
+  var heads = (line, markers) => {
+    var length = lengthOf(line)
+    if (!length) return {start: false, end: false}
+    var first = line.getPointAtLength(0)
+    var last = line.getPointAtLength(length)
+    var near = (p, box) => Math.hypot(box.x + box.width / 2 - p.x, box.y + box.height / 2 - p.y) < 12
+    var boxes = markers.map((m) => m.getBBox())
+    return {start: boxes.some((b) => near(first, b)), end: boxes.some((b) => near(last, b))}
+  }
+
+  // the graph an Ondine (or dbml) svg draws: named nodes and the lines between them, oriented towards the arrowhead
+  // the diagrams the extension draws itself name a node "<svg>-<kind>-<id>-0" and join two with a
+  // path.relationshipLine that names them in data-from and data-to
+  var drawnNode = /-(?:dbml|journey|timeline|req|git|c4|mindmap)-(.+)-0$/
+  var graphOf = (svg) => {
+    var drawn = !svg.classList.contains('ondine')
+    var info = (() => {
+      try {
+        return JSON.parse(svg.querySelector('metadata[class$="-model"]').textContent).nodes || {}
+      }
+      catch (err) {
+        return {}
+      }
+    })()
+    var nodes = drawn
+      ? Array.from(svg.querySelectorAll('g.node[id]')).map((el) => {
+        var id = (drawnNode.exec(el.id) || [])[1]
+        return {el, id, name: id && info[id] && info[id].name}
+      })
+      : Array.from(svg.querySelectorAll('g.ondine-node[data-id], g.ondine-cluster[data-id]'))
+        .map((el) => ({el, id: el.dataset.id, cluster: el.classList.contains('ondine-cluster')}))
+    nodes = nodes.filter((n) => n.id)
+    var byId = new Map(nodes.map((n) => [n.id, n]))
+    // the nodes at the two ends of a line, by where it starts and stops: ids like "edge3" name no nodes
+    var reach = (line) => {
+      var length = lengthOf(line)
+      var matrix = line.getScreenCTM()
+      if (!length || !matrix) return null
+      var at = (distance) => {
+        var point = line.getPointAtLength(distance).matrixTransform(matrix)
+        var best = null
+        nodes.forEach((n) => {
+          var box = n.el.getBoundingClientRect()
+          var gap = Math.hypot(Math.max(box.left - point.x, 0, point.x - box.right), Math.max(box.top - point.y, 0, point.y - box.bottom))
+          // a cluster holds its own nodes, a point inside it belongs to the cluster only at its frame
+          if (n.cluster && !gap) gap = Math.min(point.x - box.left, box.right - point.x, point.y - box.top, box.bottom - point.y)
+          if (!best || gap < best.gap) best = {id: n.id, gap}
+        })
+        // the arrowhead stops a few units short of the border
+        return best && best.gap <= 14 * Math.abs(matrix.a) ? best.id : null
+      }
+      var from = at(0)
+      var to = at(length)
+      return from && to ? {from, to} : null
+    }
+    var edges = drawn
+      ? Array.from(svg.querySelectorAll('path.relationshipLine[data-from]')).map((el) => ({el, line: el, from: el.dataset.from, to: el.dataset.to, reverse: false, label: null}))
+      : Array.from(svg.querySelectorAll('g.ondine-edge:not(.ondine-message)')).map((el) => {
+        var line = el.querySelector(':scope > path:not(.ondine-marker)')
+        var pair = line && reach(line)
+        if (!pair) return null
+        var tips = heads(line, Array.from(el.querySelectorAll(':scope > .ondine-marker')))
+        // "A <|-- B" draws its head at the start of the line: the link runs towards it
+        var reverse = tips.start && !tips.end
+        var label = el.dataset.id ? svg.querySelector('.ondine-edge-label[data-id="' + CSS.escape(el.dataset.id) + '"]') : null
+        return {el, line, from: reverse ? pair.to : pair.from, to: reverse ? pair.from : pair.to, reverse, label}
+      })
+    return {nodes, byId, edges: edges.filter((e) => e && byId.has(e.from) && byId.has(e.to))}
+  }
+
+  var tint = (edge, dir) => {
+    var style = edge.el.style
+    if (!dir) {
+      style.removeProperty('--_l')
+      style.removeProperty('stroke')
+      delete edge.el.dataset.mmdDir
+      return
+    }
+    edge.el.dataset.mmdDir = dir
+    style.setProperty('--_l', lit(dir))
+    style.setProperty('stroke', lit(dir), 'important')
+  }
+
+  // playback steps: the messages of a sequence diagram top to bottom, the transitions of a state machine as it
+  // unfolds from its start. Each step lights its parts and sends a comet along its lines
+  var say = (el) => (el ? Array.from(el.querySelectorAll('text')).map((t) => t.textContent.trim()).filter(Boolean).join(' ') || el.textContent.trim() : '')
+  var sequenceSteps = (svg) => Array.from(svg.querySelectorAll('g.ondine-message')).map((el) => {
+    var line = el.querySelector(':scope > path:not(.ondine-marker)')
+    var markers = Array.from(el.querySelectorAll(':scope > .ondine-marker'))
+    // a cross is a lost message, drawn as two strokes
+    var lost = markers.some((m) => ((m.getAttribute('d') || '').match(/M/gi) || []).length > 1)
+    var tips = line ? heads(line, markers) : {start: false, end: true}
+    var label = svg.querySelector('.ondine-edge-label[data-id="' + CSS.escape(el.dataset.id || '') + '"]')
+    return {
+      lines: line ? [{line, ways: tips.start && tips.end ? [1, -1] : [tips.start ? -1 : 1], lost}] : [],
+      parts: [el, label],
+      to: [],
+      label: say(label)
+    }
+  })
+
+  var stateSteps = (graph) => {
+    var {nodes, byId, edges} = graph
+    var named = (id) => {
+      var node = byId.get(id)
+      var text = node && node.el.querySelector('.ondine-label, .ondine-cluster-label')
+      return (node && node.name) || (text && text.textContent.trim()) || (/start/.test(id) ? 'Start' : /end/.test(id) ? 'End' : id)
+    }
+    var rect = (n) => n.el.getBoundingClientRect()
+    var holds = (cluster, n) => {
+      var a = rect(cluster)
+      var b = rect(n)
+      return n !== cluster && b.left >= a.left && b.right <= a.right && b.top >= a.top && b.bottom <= a.bottom
+    }
+    var clusters = nodes.filter((n) => n.cluster)
+    var incoming = new Set(edges.map((e) => e.to))
+    // a fork or join bar is a node much taller than wide, or wider than tall
+    var bar = (id) => {
+      var node = byId.get(id)
+      var box = node && !node.cluster && rect(node)
+      return !!box && (box.height > box.width * 3 || box.width > box.height * 3)
+    }
+    var order = []
+    var entered = new Set()
+    var queue = []
+    // depth first: a state's transitions play before the siblings that were waiting. Reaching a composite state
+    // plays what is inside it first, then the transitions that leave it
+    var enter = (id) => {
+      if (entered.has(id)) return
+      entered.add(id)
+      var node = byId.get(id)
+      var out = edges.filter((e) => e.from === id)
+      if (!node || !node.cluster) return void queue.unshift(...out)
+      var inside = []
+      nodes.filter((n) => !n.cluster && holds(node, n) && !incoming.has(n.id) && !entered.has(n.id)).forEach((n) => {
+        entered.add(n.id)
+        inside.push(...edges.filter((e) => e.from === n.id))
+      })
+      queue.unshift(...inside, ...out)
+    }
+    nodes.filter((n) => !incoming.has(n.id) && !clusters.some((c) => holds(c, n))).reverse().forEach((n) => enter(n.id))
+    while (queue.length) {
+      var next = queue.shift()
+      if (order.includes(next)) continue
+      order.push(next)
+      enter(next.to)
+    }
+    edges.filter((e) => !order.includes(e)).forEach((e) => order.push(e))
+    var steps = []
+    order.forEach((edge) => {
+      var said = (edge.label ? say(edge.label) + ' · ' : '') + named(edge.from) + ' → ' + named(edge.to)
+      var lines = [{line: edge.line, ways: [edge.reverse ? -1 : 1], lost: false}]
+      // the branches that leave a fork, and the ones that meet at a join, play together
+      var key = bar(edge.from) ? 'from:' + edge.from : bar(edge.to) ? 'to:' + edge.to : null
+      var step = key && steps.find((s) => s.key === key)
+      if (step) {
+        step.lines.push(...lines)
+        step.parts.push(edge.el, edge.label)
+        step.to.push(edge.to)
+        step.label += ' | ' + said
+      }
+      else {
+        steps.push({lines, parts: [edge.el, edge.label], to: [edge.to], label: said, key})
+      }
+    })
+    return steps
+  }
+
+  // fullscreen motion: hover a node to light its links, click it to focus it with comets running along them,
+  // play a sequence or a state machine step by step. Inline the diagram stays still
+  var motion = (pre, svg, signal, active) => {
+    var kind = svg.getAttribute('aria-roledescription') || ''
+    var graph = null
+    var model = () => graph || (graph = graphOf(svg))
+    var focused = null
+
+    var clearFocus = () => {
+      svg.querySelectorAll('.mmd-on, .mmd-selected').forEach((el) => el.classList.remove('mmd-on', 'mmd-selected'))
+      svg.querySelectorAll('.mmd-flow').forEach((el) => el.remove())
+      graph && graph.edges.forEach((edge) => tint(edge, null))
+    }
+    var focus = (id) => {
+      clearFocus()
+      focused = id
+      svg.classList.toggle('mmd-focus', !!id)
+      if (!id) return
+      var {nodes, byId, edges} = model()
+      var shown = new Set([id])
+      edges.filter((e) => e.from === id || e.to === id).forEach((edge, index) => {
+        var dir = edge.from === id ? 'out' : 'in'
+        shown.add(edge.from).add(edge.to)
+        edge.el.classList.add('mmd-on')
+        edge.label && edge.label.classList.add('mmd-on')
+        tint(edge, dir)
+        flow(edge.line, dir, {delay: Math.min(index, 6) * 0.2, loop: true, reverse: edge.reverse})
+      })
+      nodes.forEach((n) => n.el.classList.toggle('mmd-on', shown.has(n.id)))
+      byId.get(id).el.classList.add('mmd-selected')
+    }
+    var nodeAt = (target) => {
+      var el = target && target.closest && target.closest('g.ondine-node, g.ondine-cluster, g.node')
+      return el ? model().nodes.find((n) => n.el === el) : null
+    }
+
+    // hover: light up the links of the node under the pointer
+    var hovered = []
+    var peeked = null
+    var peek = (node) => {
+      if (peeked === node) return
+      peeked = node
+      hovered.forEach((edge) => edge.el.classList.contains('mmd-on') || tint(edge, null))
+      hovered = []
+      if (!node || focused || playing()) return
+      hovered = model().edges.filter((e) => e.from === node.id || e.to === node.id)
+      hovered.forEach((edge) => tint(edge, edge.from === node.id ? 'out' : 'in'))
+    }
+    pre.addEventListener('mouseover', (e) => active() && peek(nodeAt(e.target)), {signal})
+    pre.addEventListener('mouseleave', () => peek(null), {signal})
+
+    var down = null
+    // capture: panzoom stops pointerdown from bubbling in fullscreen, a bubbling listener would read every later
+    // click as a drag
+    pre.addEventListener('pointerdown', (e) => (down = {x: e.clientX, y: e.clientY}), {capture: true, signal})
+    pre.addEventListener('click', (e) => {
+      if (!active() || (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4)) return
+      var node = nodeAt(e.target)
+      if (!node && !focused) return
+      var open = node && node.id !== focused && !playing()
+      open && stop()
+      focus(open ? node.id : null)
+    }, {signal})
+
+    // playback, for a sequence diagram or a state machine
+    var TRAVEL = 1100
+    var HOLD = 1500
+    var steps = null
+    // a timeline plays its own reveal along the baseline, a journey walks its stages like a state machine
+    var tl = kind === 'timeline' && !calm() ? timeline.motion(svg) : null
+    var walks = kind === 'state' || kind === 'journey'
+    var stepsOf = () => steps || (steps = tl ? tl.steps.map((s) => ({lines: [], parts: [], to: [], label: s.label}))
+      : kind === 'sequence' ? sequenceSteps(svg) : walks ? stateSteps(model()) : [])
+    var plays = kind === 'sequence' || walks || !!tl
+    var at = -1
+    var run = false
+    var timer = 0
+    var drawn = []
+    var playing = () => run
+
+    var h = (tag, cls, text) => {
+      var el = document.createElement(tag)
+      el.className = cls
+      if (text != null) el.textContent = text
+      return el
+    }
+    var player = h('div', 'mmd-player')
+    player.hidden = true
+    ;['pointerdown', 'click', 'dblclick', 'wheel'].forEach((type) => player.addEventListener(type, (e) => e.stopPropagation()))
+    var tool = (name, title, onclick) => {
+      var btn = h('button', 'mmd-player-btn')
+      btn.type = 'button'
+      btn.title = title
+      btn.setAttribute('aria-label', title)
+      btn.innerHTML = icon(name)
+      btn.addEventListener('click', onclick)
+      return btn
+    }
+    var counter = h('span', 'mmd-player-count')
+    var caption = h('span', 'mmd-player-caption')
+    var playTool = tool('play', 'Play (P)', () => toggle())
+    var closeTool = h('button', 'mmd-player-close', '×')
+    closeTool.type = 'button'
+    closeTool.title = 'Close (Esc)'
+    closeTool.setAttribute('aria-label', 'Close')
+    closeTool.addEventListener('click', () => stop())
+    var unit = {state: 'transition', journey: 'stage', timeline: 'period'}[kind] || 'message'
+    plays && player.append(tool('prev', 'Previous ' + unit + ' ([)', () => move(-1)), playTool, tool('next', 'Next ' + unit + ' (])', () => move(1)), counter, caption, closeTool)
+    plays && pre.appendChild(player)
+
+    var mark = (current) => {
+      if (tl) return tl.frame(current)
+      var list = stepsOf()
+      list.forEach((step, j) => {
+        var state = current < 0 ? '' : j < current ? 'done' : j === current ? 'now' : 'wait'
+        step.parts.forEach((el) => el && (state ? el.setAttribute('data-mmd-seq', state) : el.removeAttribute('data-mmd-seq')))
+      })
+      if (!walks) return
+      // the state just reached is lit, the ones reached before keep their colours, the rest wait
+      var starts = new Set(model().nodes.filter((n) => !model().edges.some((e) => e.to === n.id)).map((n) => n.id))
+      model().nodes.forEach((n) => {
+        var reached = starts.has(n.id) || current >= list.length || list.slice(0, Math.max(current, 0)).some((s) => s.to.includes(n.id))
+        var now = current >= 0 && current < list.length && list[current].to.includes(n.id)
+        var state = current < 0 ? '' : now ? 'now' : reached ? 'done' : 'wait'
+        state ? n.el.setAttribute('data-mmd-seq', state) : n.el.removeAttribute('data-mmd-seq')
+      })
+    }
+    var clearDrawn = () => {
+      drawn.forEach((el) => el.remove())
+      drawn = []
+    }
+    var travel = (step) => step.lines.forEach(({line, ways, lost}) => ways.forEach((way) => {
+      var color = lost ? (dark() ? '#f07f77' : '#c0401f') : dark() ? '#79b1f9' : '#eb6c36'
+      var streak = flow(line, 'out', {reverse: way < 0, over: TRAVEL, color})
+      streak.isConnected && drawn.push(streak)
+    }))
+    var paint = () => {
+      var list = stepsOf()
+      playTool.innerHTML = icon(run ? 'pause' : 'play')
+      playTool.title = run ? 'Pause (P)' : at >= list.length ? 'Replay (P)' : 'Play (P)'
+      playTool.setAttribute('aria-label', playTool.title)
+    }
+    var go = (i) => {
+      var list = stepsOf()
+      clearTimeout(timer)
+      clearDrawn()
+      focused && focus(null)
+      player.hidden = false
+      svg.classList.add('mmd-seq')
+      at = Math.max(0, Math.min(i, list.length - 1))
+      mark(at)
+      travel(list[at])
+      counter.textContent = at + 1 + ' / ' + list.length
+      caption.textContent = list[at].label
+      paint()
+      if (run) timer = setTimeout(() => (at + 1 < list.length ? go(at + 1) : finish()), HOLD)
+    }
+    // the run ends complete: every step back at full strength
+    var finish = () => {
+      var list = stepsOf()
+      clearTimeout(timer)
+      clearDrawn()
+      run = false
+      at = list.length
+      mark(at)
+      counter.textContent = list.length + ' / ' + list.length
+      caption.textContent = 'Complete'
+      paint()
+    }
+    var pause = () => {
+      run = false
+      clearTimeout(timer)
+      paint()
+    }
+    var toggle = () => {
+      var list = stepsOf()
+      if (!list.length) return
+      if (at < 0 || at >= list.length) {
+        run = true
+        go(0)
+      }
+      else if (run) pause()
+      else {
+        run = true
+        go(at)
+      }
+    }
+    var move = (by) => {
+      var list = stepsOf()
+      if (!list.length) return
+      pause()
+      if (by > 0 && at >= list.length - 1 && at >= 0) return finish()
+      go(at < 0 ? 0 : at >= list.length ? list.length - 1 : at + by)
+    }
+    var stop = () => {
+      run = false
+      clearTimeout(timer)
+      clearDrawn()
+      at = -1
+      steps && mark(-1)
+      svg.classList.remove('mmd-seq')
+      player.hidden = true
+      plays && paint()
+    }
+
+    return {
+      plays,
+      toggle,
+      // keys: P play, [ ] step, escape closes the player, then the focus
+      key: (e) => {
+        if (plays && (e.key === 'p' || e.key === 'P')) return toggle(), true
+        if (plays && e.key === '[') return move(-1), true
+        if (plays && e.key === ']') return move(1), true
+        if (e.key === 'Escape' && at >= 0) return stop(), true
+        if (e.key === 'Escape' && focused) return focus(null), true
+        return false
+      },
+      // leaving fullscreen: nothing keeps running, and the layout may have moved, so the graph is read again
+      reset: () => {
+        stop()
+        peek(null)
+        focus(null)
+        graph = null
+        steps = null
+      },
+      dispose: () => {
+        stop()
+        player.remove()
+      }
+    }
+  }
+
   // fullscreen + zoom controls; zoom/move only work in fullscreen, inline the diagram is static
   // mouse: wheel zoom, drag move | touchpad: pinch zoom, two-finger move | touch: pinch zoom, drag move
   var toolbar = (pre, panzoom) => {
@@ -95,7 +619,8 @@ var mmd = (() => {
     pre._mmdDispose = () => {
       abort.abort()
       panzoom.destroy()
-      pre.querySelectorAll(':scope > .mmd-toolbar').forEach((el) => el.remove())
+      pre._mmdMotion && pre._mmdMotion.dispose()
+      pre.querySelectorAll(':scope > .mmd-toolbar, :scope > .mmd-player').forEach((el) => el.remove())
     }
 
     var bar = document.createElement('div')
@@ -127,12 +652,16 @@ var mmd = (() => {
     bar.appendChild(level)
     button('zoomIn', 'Zoom in', () => panzoom.zoomIn())
     button('reset', 'Reset', () => panzoom.reset())
+    var play = button('play', 'Play (P)', () => moves_.toggle())
     var full = button('fullscreen', 'Fullscreen', () => fullscreen(pre, !active()))
     bar.addEventListener('pointerdown', (e) => e.stopPropagation())
     pre.appendChild(bar)
 
     var code = pre.querySelector(':scope > code.mermaid')
     var svg = code.querySelector('svg')
+    var moves_ = motion(pre, svg, signal, active)
+    pre._mmdMotion = moves_
+    play.hidden = !moves_.plays
     var svgEvent = (name, fn) => svg.addEventListener(name, (e) => active() && fn(e), {signal})
     svgEvent('panzoomchange', (e) => {
       level.textContent = Math.round(e.detail.scale * 100) + '%'
@@ -145,6 +674,7 @@ var mmd = (() => {
     var step = 40
     var moves = {ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step]}
     pre._mmdKey = (e) => {
+      if (moves_.key(e)) return true
       if (e.key === '+' || e.key === '=') panzoom.zoomIn()
       else if (e.key === '-') panzoom.zoomOut()
       else if (e.key === '0') panzoom.reset()
@@ -161,6 +691,7 @@ var mmd = (() => {
       code.style.userSelect = svg.style.userSelect = on ? 'none' : ''
       panzoom.reset({animate: false})
       level.textContent = '100%'
+      on || moves_.reset()
     }
     pre._mmdFullscreen = sync
     sync()
@@ -229,10 +760,13 @@ var mmd = (() => {
       var box = node.parentNode
       var pad = box ? getComputedStyle(box) : null
       var fit = box ? box.clientWidth - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight) : 0
-      var drawn = Promise.resolve().then(() =>
-        node.classList.contains('dbml')
-          ? {svg: dbml.render(text, t, {sans, mono}, id)}
-          : ask(text, {idPrefix: id, fontSize: 13, maxWidth: fit > 0 ? fit : undefined})
+      // dbml, user journeys, timelines, gantt, pie, quadrant, requirement, git, c4 and mindmap draw themselves in the
+      // diagram-design skin, Ondine gets the rest and whatever they hand back
+      var custom = node.classList.contains('dbml')
+        ? () => dbml.render(text, t, {sans, mono}, id)
+        : () => [journey, timeline, gantt, pie, quadrant, requirement, gitgraph, c4, mindmap].reduce((svg, d) => svg || d.render(text, t, {sans, mono}, id, fit), '')
+      var drawn = Promise.resolve().then(custom).then((svg) =>
+        svg ? {svg} : ask(text, {idPrefix: id, fontSize: 13, maxWidth: fit > 0 ? fit : undefined})
       )
       return drawn.then(({svg, error}) => {
         if (error) throw new Error(error)
@@ -246,6 +780,7 @@ var mmd = (() => {
     loaded = true
 
     Promise.all(jobs).then(() => {
+      document.querySelectorAll('code.mermaid svg[aria-roledescription=gantt]').forEach(gantt.bind)
       document.querySelectorAll('pre > code.mermaid > svg').forEach((diagram) => {
         var panzoom = Panzoom(diagram, {canvas: true, maxScale: 20, minScale: 0.2, touchAction: 'auto', pinchAndPan: true, noBind: true, cursor: ''})
         var pre = diagram.closest('pre')

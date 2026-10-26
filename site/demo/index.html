@@ -118,7 +118,9 @@ var chrome = {runtime: {
   getURL: (path) => 'ext' + path,
   sendMessage: (req, done) => ondineBackground.render(req.source, req.options).then(done)
 }}
-var files = ['vendor/ondine.min.js', 'background/ondine.js', 'vendor/panzoom.min.js', 'content/draw.js', 'content/dbml.js', 'content/mermaid.js']
+var files = ['vendor/ondine.min.js', 'background/ondine.js', 'vendor/panzoom.min.js', 'content/draw.js', 'content/dbml.js',
+  'content/journey.js', 'content/timeline.js', 'content/gantt.js', 'content/pie.js', 'content/quadrant.js', 'content/requirement.js',
+  'content/gitgraph.js', 'content/c4.js', 'content/mindmap.js', 'content/mermaid.js']
 var load = (i) => {
   if (i === files.length) return start()
   var s = document.createElement('script')

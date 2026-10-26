@@ -45,7 +45,7 @@ const ext = join(out, 'demo', 'ext')
 ;[
   'content/index.css', 'content/themes.css', 'themes/nimbus.css', 'themes/nimbus-dark.css',
   'vendor/ondine.min.js', 'vendor/ondine.wasm', 'vendor/panzoom.min.js', 'background/ondine.js',
-  ...['draw', 'dbml', 'mermaid']
+  ...['draw', 'dbml', 'journey', 'timeline', 'gantt', 'pie', 'quadrant', 'requirement', 'gitgraph', 'c4', 'mindmap', 'mermaid']
     .map((name) => `content/${name}.js`)
 ].forEach((file) => {
   mkdirSync(dirname(join(ext, file)), { recursive: true })

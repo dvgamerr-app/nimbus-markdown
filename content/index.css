@@ -548,3 +548,222 @@ img.emojione {
   /* prevent img stretch */
   width: auto;
 }
+
+/*---------------------------------------------------------------------------*/
+/*diagram motion (fullscreen): node focus, comets along links, step playback*/
+pre.mmd-fullscreen svg :is(.ondine-node, .ondine-cluster, g.node:not(.gantt-task, .pie-slice, .quadrant-point)) {
+  cursor: pointer;
+}
+svg :is(.ondine-node, .ondine-edge, .ondine-edge-label, .ondine-cluster, g.node, path.relationshipLine, g.edgeLabel) {
+  transition: opacity .16s ease;
+}
+svg.mmd-focus :is(.ondine-node, .ondine-edge, .ondine-edge-label, .ondine-cluster, g.node, path.relationshipLine, g.edgeLabel):not(.mmd-on) {
+  opacity: .18;
+}
+/*the focused node and the state a run has just reached take the accent: Ondine draws a shape in --_s and --_b*/
+svg :is(.ondine-node, .ondine-cluster).mmd-selected,
+svg.mmd-seq :is(.ondine-node, .ondine-cluster)[data-mmd-seq=now] {
+  --_b: var(--ondine-accent);
+  --_s: color-mix(in srgb, var(--ondine-accent) 10%, var(--ondine-bg));
+  stroke-width: 1.6px;
+}
+/*the diagrams the extension draws itself: the focused node glows in the accent*/
+svg g.node.mmd-selected,
+svg.mmd-seq g.node[data-mmd-seq=now] {
+  filter: drop-shadow(0 0 4px rgba(235, 108, 54, .55));
+}
+._mermaid-dark svg g.node.mmd-selected,
+._mermaid-dark svg.mmd-seq g.node[data-mmd-seq=now] {
+  filter: drop-shadow(0 0 4px rgba(121, 177, 249, .6));
+}
+svg .ondine-edge-label.mmd-on {
+  font-weight: 600;
+}
+.mmd-flow {
+  --c: #eb6c36;
+  pointer-events: none;
+  filter: drop-shadow(0 0 2px var(--c));
+}
+.mmd-flow[data-dir=in] { --c: #2e5aa8; }
+._mermaid-dark .mmd-flow { --c: #79b1f9; }
+.mmd-flow > :is(path, line) {
+  fill: none !important;
+  stroke-linecap: round;
+}
+/*the colour holds the whole streak, on a dark page the middle heats up to near white*/
+.mmd-flow stop { stop-color: var(--c); }
+._mermaid-dark .mmd-flow .mmd-flow-body-fade stop { stop-color: color-mix(in srgb, var(--c) 55%, #fff); }
+._mermaid-dark .mmd-flow .mmd-flow-head-fade stop { stop-color: color-mix(in srgb, var(--c) 25%, #fff); }
+._mermaid-dark .mmd-flow .mmd-flow-core-fade stop { stop-color: #fff; }
+.mmd-flow > .mmd-flow-glow { stroke-width: 10px !important; stroke-opacity: .14; }
+.mmd-flow > .mmd-flow-tail { stroke-width: 2.6px !important; stroke-opacity: .7; }
+.mmd-flow > .mmd-flow-body { stroke-width: 3px !important; stroke-opacity: .85; }
+.mmd-flow > .mmd-flow-head { stroke-width: 3.4px !important; }
+.mmd-flow > .mmd-flow-core { stroke-width: 2.2px !important; }
+/*playback: the steps still to come wait dimmed, the one playing is drawn heavier*/
+svg.mmd-seq [data-mmd-seq=wait] {
+  opacity: .15;
+}
+svg [data-mmd-seq] {
+  transition: opacity .16s ease;
+}
+svg.mmd-seq .ondine-edge[data-mmd-seq=now] {
+  stroke-width: 2px;
+}
+svg.mmd-seq .ondine-edge-label[data-mmd-seq=now] {
+  font-weight: 600;
+}
+.mmd-player {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 32px);
+  padding: 6px 8px;
+  border: 1px solid #bfc0c0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #2d3142;
+  transform: translateX(-50%);
+  font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  white-space: normal;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 8px 24px rgba(45, 49, 66, .14);
+}
+.mmd-player[hidden],
+pre:not(.mmd-fullscreen) > .mmd-player {
+  display: none;
+}
+._mermaid-dark .mmd-player {
+  border-color: #404040;
+  background: #0f0f0f;
+  color: #f5f5f5;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .6);
+}
+.mmd-player button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #bfc0c0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  cursor: pointer;
+}
+._mermaid-dark .mmd-player button {
+  border-color: #404040;
+}
+.mmd-player button:hover {
+  border-color: #eb6c36;
+  color: #eb6c36;
+}
+.mmd-player button:focus-visible {
+  outline: 2px solid #2e5aa8;
+  outline-offset: 1px;
+}
+.mmd-player .mmd-player-close {
+  width: 24px;
+  height: 24px;
+  font: 14px/1 inherit;
+}
+.mmd-player-count {
+  flex: none;
+  font: 600 11px/1 "Geist Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  color: #bf4520;
+}
+._mermaid-dark .mmd-player-count {
+  color: #79b1f9;
+}
+.mmd-player-caption {
+  min-width: 0;
+  max-width: 18rem;
+  overflow: hidden;
+  font: 400 11px/1.4 "Geist Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #5a6580;
+}
+._mermaid-dark .mmd-player-caption {
+  color: #a3a3a3;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mmd-flow { display: none; }
+}
+
+/*---------------------------------------------------------------------------*/
+/*diagram-design skin for the diagrams Ondine draws: hairlines, rounded boxes, names in sans, labels and captions
+  in tracked mono. Node classes usable from markdown: A:::focal, :::store, :::external, :::input, :::optional,
+  :::security, and :::join for an entity. The tokens come from content/mermaid.js*/
+svg.ondine .ondine-label {
+  font-weight: 600;
+}
+svg.ondine .ondine-edge-label text {
+  font-family: var(--mmd-mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+  fill: var(--mmd-soft);
+}
+svg.ondine .ondine-edge-label rect {
+  fill: var(--ondine-bg);
+}
+svg.ondine .ondine-cluster > :is(rect, path) {
+  stroke: var(--mmd-rule);
+  stroke-dasharray: 4 4;
+}
+svg.ondine .ondine-cluster-label,
+svg.ondine .ondine-frame-kind {
+  font-family: var(--mmd-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  fill: var(--mmd-soft);
+}
+svg.ondine .ondine-frame > rect:first-child {
+  stroke: rgba(var(--mmd-ink-rgb), .22);
+  stroke-dasharray: 4 3;
+}
+svg.ondine :is(.ondine-member, .ondine-er-type, .ondine-er-name, .ondine-er-keys) {
+  font-family: var(--mmd-mono);
+  font-size: 11px;
+}
+svg.ondine :is(.ondine-er-type, .ondine-er-keys) {
+  fill: var(--ondine-muted);
+}
+svg.ondine .focal {
+  --_s: var(--mmd-accent-tint);
+  --_b: var(--ondine-accent);
+}
+svg.ondine .store {
+  --_s: rgba(var(--mmd-ink-rgb), .05);
+  --_b: var(--ondine-muted);
+}
+svg.ondine .external {
+  --_s: rgba(var(--mmd-ink-rgb), .03);
+  --_b: rgba(var(--mmd-ink-rgb), .30);
+}
+svg.ondine .input {
+  --_s: var(--mmd-paper2);
+  --_b: var(--mmd-soft);
+}
+svg.ondine .optional {
+  --_s: rgba(var(--mmd-ink-rgb), .02);
+  --_b: rgba(var(--mmd-ink-rgb), .20);
+}
+svg.ondine .security {
+  --_s: var(--mmd-accent-tint);
+  --_b: color-mix(in srgb, var(--ondine-accent) 50%, transparent);
+}
+svg.ondine :is(.optional, .security, .join) > :is(rect, path, polygon, circle, ellipse) {
+  stroke-dasharray: 4 3;
+}
+svg.ondine .join {
+  --_s: rgba(var(--mmd-ink-rgb), .04);
+}
