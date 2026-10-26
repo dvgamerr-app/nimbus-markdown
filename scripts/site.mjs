@@ -44,8 +44,8 @@ cpSync(join(root, 'docs', 'store', 'marquee-promo-1280x640.png'), join(out, 'og.
 const ext = join(out, 'demo', 'ext')
 ;[
   'content/index.css', 'content/themes.css', 'themes/nimbus.css', 'themes/nimbus-dark.css',
-  'vendor/mermaid.min.js', 'vendor/panzoom.min.js',
-  ...['draw', 'dbml', 'journey', 'timeline', 'gantt', 'pie', 'quadrant', 'requirement', 'gitgraph', 'c4', 'mindmap', 'mermaid']
+  'vendor/ondine.min.js', 'vendor/ondine.wasm', 'vendor/panzoom.min.js', 'background/ondine.js',
+  ...['draw', 'dbml', 'mermaid']
     .map((name) => `content/${name}.js`)
 ].forEach((file) => {
   mkdirSync(dirname(join(ext, file)), { recursive: true })

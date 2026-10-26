@@ -21,27 +21,27 @@ bun run build:themes         # only rebuild dist/nimbus-markdown/themes
 
 | module | version
 | :-     | -:
-| bootstrap           | 5.3.3
+| bootstrap           | 5.3.8
 | cleanrmd            | 0.1.0
-| github-markdown-css | 5.5.1
+| github-markdown-css | 5.9.0
 | mathjax             | 3.2.2
-| mermaid | 12.2.0
+| ondine              | 0.0.3
 | mithril             | 1.1.7
-| prismjs             | 1.29.0
-| csso                | 5.0.5
-| @panzoom/panzoom    | 4.5.1
+| prismjs                | 1.30.0
+| csso                   | 5.0.5
+| @panzoom/panzoom    | 4.6.2
 | **markdown-it**
-| markdown-it            | 13.0.1
-| markdown-it-abbr       | 1.0.4
-| markdown-it-anchor     | 8.6.7
-| markdown-it-attrs      | 4.1.6
-| markdown-it-cjk-breaks | 1.1.3
-| markdown-it-deflist    | 2.1.0
-| markdown-it-footnote   | 3.0.3
-| markdown-it-ins        | 3.0.1
-| markdown-it-mark       | 3.0.1
-| markdown-it-sub        | 1.0.0
-| markdown-it-sup        | 1.0.0
+| markdown-it            | 15.0.3
+| markdown-it-abbr       | 2.0.0
+| markdown-it-anchor     | 10.0.0
+| markdown-it-attrs      | 5.0.1
+| markdown-it-cjk-breaks | 2.0.1
+| markdown-it-deflist    | 4.0.0
+| markdown-it-footnote   | 4.0.0
+| markdown-it-ins        | 4.0.0
+| markdown-it-mark       | 4.0.0
+| markdown-it-sub        | 2.0.0
+| markdown-it-sup        | 2.0.0
 | markdown-it-task-lists | 2.1.1
 | github-slugger         | 2.0.0
 | **mdc**

@@ -1,5 +1,5 @@
 
-md.messages = ({storage: {defaults, state, set}, compilers, mathjax, xhr, webrequest, icon}) => {
+md.messages = ({storage: {defaults, state, set}, compilers, mathjax, xhr, ondine, webrequest, icon}) => {
 
   return (req, sender, sendResponse) => {
 
@@ -19,6 +19,9 @@ md.messages = ({storage: {defaults, state, set}, compilers, mathjax, xhr, webreq
       }
 
       sendResponse({message: 'html', html})
+    }
+    else if (req.message === 'ondine') {
+      ondine.render(req.source, req.options).then(sendResponse)
     }
     else if (req.message === 'autoreload') {
       xhr.get(req.location, (err, body) => {

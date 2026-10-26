@@ -31,7 +31,7 @@ An interactive Markdown viewer for Chrome. Open any `.md` file and read it as a 
 
 ## Why Nimbus
 
-- **Diagrams are interactive, not pictures.** Fullscreen any Mermaid diagram to zoom, search, open a node's connections and play sequences, journeys and timelines.
+- **Diagrams are interactive, not pictures.** Fullscreen any Mermaid diagram to pan and zoom it. Diagrams are compiled to crisp SVG by [Ondine](https://ondine.sh) and follow your light or dark theme.
 - **Built for the docs developers read every day.** README files, design notes, architecture and the Markdown your AI coding agent writes, opened straight from disk.
 - **Your file stays on your machine.** Rendering happens in the browser. Local files need one switch, websites only work where you allow them. See the [privacy policy](PRIVACY.md).
 - **Free and open source.** MIT licensed, a maintained fork of Markdown Viewer by Simeon Velichkov.
@@ -135,7 +135,7 @@ Load `dist/nimbus-markdown` with **Load unpacked** on `chrome://extensions` (Dev
 
 - **[simov/markdown-viewer](https://github.com/simov/markdown-viewer)** by Simeon Velichkov. Nimbus is a fork of Markdown Viewer, and its renderer, origin management and themes are the foundation everything here is built on.
 - **[cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design)** by Cathryn Lavery. The reference design for how Nimbus draws diagrams: the editorial palette, one focal accent, journey maps, timelines and the rest of the redrawn diagram types.
-- The open-source libraries it ships: [markdown-it](https://github.com/markdown-it/markdown-it), [Mermaid](https://mermaid.js.org), [MathJax](https://www.mathjax.org), [Prism](https://prismjs.com), [panzoom](https://github.com/timmywil/panzoom), [cleanrmd](https://github.com/gadenbuie/cleanrmd) and [github-markdown-css](https://github.com/sindresorhus/github-markdown-css).
+- The open-source libraries it ships: [markdown-it](https://github.com/markdown-it/markdown-it), [Ondine](https://ondine.sh), [MathJax](https://www.mathjax.org), [Prism](https://prismjs.com), [panzoom](https://github.com/timmywil/panzoom), [cleanrmd](https://github.com/gadenbuie/cleanrmd) and [github-markdown-css](https://github.com/sindresorhus/github-markdown-css).
 
 ## License
 
