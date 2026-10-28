@@ -69,6 +69,7 @@ var mmd = (() => {
     '--mmd-node': t.node,
     '--mmd-caption': t.caption,
     '--mmd-shadow': t.shadow,
+    ...Object.keys(t.syn).reduce((all, key) => (all[`--mmd-syn-${key}`] = t.syn[key], all), {}),
     ...[t.accent, ...t.series, t.muted, t.soft].reduce((all, color, i) => (all[`--ondine-series-${i + 1}`] = color, all), {})
   })
 
@@ -349,7 +350,7 @@ var mmd = (() => {
         var label = el.dataset.id ? svg.querySelector('.ondine-edge-label[data-id="' + CSS.escape(el.dataset.id) + '"]') : null
         return {el, line, from: reverse ? pair.to : pair.from, to: reverse ? pair.from : pair.to, reverse, label}
       })
-    return {nodes, byId, edges: edges.filter((e) => e && byId.has(e.from) && byId.has(e.to))}
+    return {nodes, byId, info, edges: edges.filter((e) => e && byId.has(e.from) && byId.has(e.to))}
   }
 
   // Ondine bends a link with a cubic curve where it changes lanes: redraw every link as straight runs that turn at
@@ -419,6 +420,109 @@ var mmd = (() => {
       'L' + r1(cur[0] - (cur[0] - prev[0]) * r / l1) + ',' + r1(cur[1] - (cur[1] - prev[1]) * r / l1) +
       'Q' + r1(cur[0]) + ',' + r1(cur[1]) + ' ' + r1(cur[0] + (next[0] - cur[0]) * r / l2) + ',' + r1(cur[1] + (next[1] - cur[1]) * r / l2)
   }, '')
+  // an entity relationship says its cardinality in words: 1 for the one side, N for the many side, whether or not it
+  // is optional. Ondine draws the crow's foot marks; they are read and replaced by a label at each end of the line
+  var cardinalize = (svg) => svg.classList.contains('ondine-er') && svg.querySelectorAll('.ondine-edge').forEach((edge) => {
+    var line = edge.querySelector(':scope > path:not(.ondine-marker)')
+    var length = line && lengthOf(line)
+    var marks = Array.from(edge.querySelectorAll(':scope > .ondine-marker'))
+    if (!length || !marks.length) return
+    var ends = [{at: 0, way: 1, marks: []}, {at: length, way: -1, marks: []}]
+    marks.forEach((mark) => {
+      var box = mark.getBBox()
+      var x = box.x + box.width / 2
+      var y = box.y + box.height / 2
+      var start = line.getPointAtLength(0)
+      var end = line.getPointAtLength(length)
+      ends[Math.hypot(x - start.x, y - start.y) <= Math.hypot(x - end.x, y - end.y) ? 0 : 1].marks.push(mark)
+    })
+    var group = document.createElementNS(NS, 'g')
+    group.setAttribute('class', 'ondine-er-cardinality')
+    ends.forEach(({at, way, marks: own}) => {
+      // a crow's foot is a path with a corner (three points), the one side is only bars
+      var many = own.some((m) => /^M[^MLZ]+L[^MLZ]+L[^MLZ]+/i.test((m.getAttribute('d') || '').replace(/s+/g, '')))
+      var one = own.some((m) => m.tagName === 'path')
+      own.forEach((m) => m.remove())
+      if (!many && !one) return
+      var word = many ? 'N' : '1'
+      var inner = line.getPointAtLength(Math.max(0, Math.min(length, at + way * 16)))
+      var label = document.createElementNS(NS, 'g')
+      label.setAttribute('transform', 'translate(' + inner.x + ',' + inner.y + ')')
+      var rect = document.createElementNS(NS, 'rect')
+      ;[['x', -7], ['y', -7], ['width', 14], ['height', 14], ['rx', 3]].forEach(([k, v]) => rect.setAttribute(k, v))
+      var text = document.createElementNS(NS, 'text')
+      ;[['text-anchor', 'middle'], ['dominant-baseline', 'central']].forEach(([k, v]) => text.setAttribute(k, v))
+      text.textContent = word
+      label.append(rect, text)
+      group.append(label)
+    })
+    edge.append(group)
+  })
+
+  // the members of a class, coloured like source code: visibility, names, types, punctuation. Ondine writes a member
+  // as one text, "+eat(food: Food) : bool" or "+String name"; split it into spans that the skin colours
+  var NS = 'http://www.w3.org/2000/svg'
+  var memberParts = (text, method) => {
+    var parts = []
+    var add = (kind, value) => value && parts.push([kind, value])
+    // words between the punctuation: a name, or a type once it follows ":" or leads a "Type name" pair
+    var typed = (src) => {
+      var words = src.split(/([\s,<>\[\]|&?:*]+)/)
+      var after = false
+      words.forEach((w, i) => {
+        if (!w) return
+        if (/^[\s,<>\[\]|&?:*]+$/.test(w)) {
+          after = after || w.includes(':')
+          return add('punct', w)
+        }
+        var next = words.slice(i + 1).find((x) => x && /\S/.test(x))
+        add(after || (!method && /^\s+$/.test(words[i + 1] || '') && next && /^[\w$]/.test(next)) ? 'type' : 'name', w)
+        if (after && !/^[\w$.]+$/.test(w)) after = false
+      })
+    }
+    var vis = /^[+\-#~]/.exec(text)
+    if (vis) {
+      add('vis', vis[0])
+      text = text.slice(1).replace(/^\s+/, '')
+    }
+    var call = method && /^([^(]*)\((.*)\)(.*)$/.exec(text)
+    if (call) {
+      add('fn', call[1])
+      add('punct', '(')
+      call[2].split(/(,\s*)/).forEach((arg) => {
+        if (/^,\s*$/.test(arg)) return add('punct', arg)
+        var pair = /^(\s*)([^:]+?)(\s*:\s*)(.*)$/.exec(arg)
+        if (pair) {
+          add('name', pair[1] + pair[2])
+          add('punct', pair[3])
+          add('type', pair[4])
+        }
+        else {
+          var two = /^(\S+)(\s+)(\S+)$/.exec(arg.trim())
+          two ? (add('type', two[1]), add('punct', two[2]), add('name', two[3])) : add('type', arg)
+        }
+      })
+      add('punct', ')')
+      var ret = /^(\s*:\s*)(.*)$/.exec(call[3])
+      ret ? (add('punct', ret[1]), add('type', ret[2])) : add('type', call[3])
+    }
+    else typed(text)
+    return parts
+  }
+  var highlightMembers = (svg) => svg.querySelectorAll('.ondine-member').forEach((el) => {
+    var text = el.textContent
+    if (el.children.length || !text) return
+    var method = el.classList.contains('ondine-method')
+    el.textContent = ''
+    memberParts(text, method).forEach(([kind, value]) => {
+      var span = document.createElementNS(NS, 'tspan')
+      span.setAttribute('class', 'mmd-syn-' + kind)
+      span.setAttribute('xml:space', 'preserve')
+      span.textContent = value
+      el.appendChild(span)
+    })
+  })
+
   var straighten = (svg) => svg.querySelectorAll('.ondine-edge > path:not(.ondine-marker)').forEach((line) => {
     var points = pointsOf(line.getAttribute('d') || '')
     points && points.length > 1 && line.setAttribute('d', roundedPath(points))
@@ -524,7 +628,7 @@ var mmd = (() => {
 
   // fullscreen motion: hover a node to light its links, click it to focus it with comets running along them,
   // play a sequence or a state machine step by step. Inline the diagram stays still
-  var motion = (pre, svg, signal, active) => {
+  var motion = (pre, svg, signal, active, panzoom) => {
     var kind = svg.getAttribute('aria-roledescription') || ''
     var graph = null
     var model = () => graph || (graph = graphOf(svg))
@@ -539,6 +643,7 @@ var mmd = (() => {
       clearFocus()
       focused = id
       svg.classList.toggle('mmd-focus', !!id)
+      drawCard(id)
       if (!id) return
       var {nodes, byId, edges} = model()
       var shown = new Set([id])
@@ -608,6 +713,164 @@ var mmd = (() => {
       if (text != null) el.textContent = text
       return el
     }
+    // popup card for the focused node: what it is, what it holds (columns, members, fields) and clickable links to the
+    // nodes it is joined to. The drawn diagrams hand over their own model in a <metadata> element
+    var card = h('div', 'mmd-card')
+    card.hidden = true
+    ;['pointerdown', 'click', 'dblclick', 'wheel'].forEach((type) => card.addEventListener(type, (e) => e.stopPropagation()))
+    pre.appendChild(card)
+    var flavours = ['focal', 'store', 'external', 'input', 'optional', 'security']
+    var labelOf = (n) => {
+      var data = model().info[n.id] || {}
+      var text = n.el.querySelector('.ondine-label, .ondine-cluster-label, text:not(.ondine-member, .ondine-annotation)')
+      return data.title || data.name || n.name || (text && text.textContent.trim()) || n.id
+    }
+    var center = (el) => {
+      var box = el.getBoundingClientRect()
+      var area = pre.getBoundingClientRect()
+      var scale = panzoom.getScale()
+      panzoom.pan(
+        (area.left + area.width / 2 - box.left - box.width / 2) / scale,
+        (area.top + area.height / 2 - box.top - box.height / 2) / scale,
+        {relative: true, animate: true}
+      )
+    }
+    var cardRow = (name, {chips = [], type = '', sub = '', code = null} = {}) => {
+      var row = h('div', 'mmd-col')
+      var line = h('div', 'mmd-col-line')
+      code ? line.append(code) : line.append(h('strong', 'mmd-col-name', name))
+      chips.forEach((chip) => line.append(h('span', 'mmd-chip', chip)))
+      type && line.append(h('code', 'mmd-col-type', type))
+      row.append(line)
+      sub && row.append(h('small', 'mmd-col-sub', sub))
+      return row
+    }
+    var cardStat = (text, value, dir) => {
+      var cell = h('div', 'mmd-stat')
+      if (dir) cell.dataset.dir = dir
+      cell.append(h('span', 'mmd-card-label', text), h('strong', '', String(value)))
+      return cell
+    }
+    var memberCode = (text, method) => {
+      var code = h('code', 'mmd-member')
+      var dark = document.documentElement.classList.contains('_mermaid-dark')
+      var syn = tokens[dark ? 'dark' : 'light'].syn
+      Object.keys(syn).forEach((key) => card.style.setProperty('--mmd-syn-' + key, syn[key]))
+      memberParts(text, method).forEach(([part, value]) => code.append(h('span', 'mmd-syn-' + part, value)))
+      return code
+    }
+    // what a node says about itself: [eyebrow, note, stats, sections of rows]
+    var describe = (node, data) => {
+      var sections = []
+      var rows = (title, list) => list.length && sections.push([title + ' · ' + list.length, list])
+      var members = Array.from(node.el.querySelectorAll('.ondine-member'))
+      if (data.cols) {
+        var enumeration = data.kind === 'enum'
+        rows(enumeration ? 'Values' : 'Columns', data.cols.map((col) => cardRow(col.name, {
+          chips: col.chips || [], type: col.type,
+          sub: [col.inc && 'auto increment', col.def && 'default ' + col.def, col.note].filter(Boolean).join(' · ')
+        })))
+        rows('Indexes', data.indexes.map((ix) => cardRow(ix.name, {chips: ix.unique ? ['UQ'] : [], sub: '(' + ix.cols.join(', ') + ')'})))
+        return {
+          eyebrow: enumeration ? 'Enum' : 'Table', note: data.note, sections,
+          stats: [cardStat(enumeration ? 'Values' : 'Columns', data.cols.length), cardStat('Indexes', data.indexes.length)]
+        }
+      }
+      if (data.score != null) {
+        rows('Actors', data.actors.map((actor) => cardRow(actor)))
+        return {
+          eyebrow: 'Stage ' + data.n + (data.section ? ' · ' + data.section : ''), note: data.low ? 'Lowest point of the journey' : '', sections,
+          stats: [cardStat('Level', data.level), cardStat('Score', data.score + '/5')]
+        }
+      }
+      if (data.events) {
+        data.story && sections.push(['What happened', [h('p', 'mmd-card-desc', data.story)]])
+        rows('Events', data.events.map((event) => cardRow(event)))
+        return {
+          eyebrow: 'Period ' + data.n + (data.section ? ' · ' + data.section : ''), note: data.major ? 'Busiest period of the timeline' : '', sections,
+          stats: [cardStat('Events', data.events.length), cardStat('Since previous', data.gap == null ? '—' : '+' + data.gap)]
+        }
+      }
+      if (data.tag) {
+        var fields = [['Id', data.id], ['Text', data.text], ['Type', data.type], ['Risk', data.risk], ['Verify', data.verify], ['Doc ref', data.docref]].filter(([, v]) => v)
+        rows('Fields', fields.map(([name, value]) => cardRow(name, {sub: value})))
+        return {eyebrow: data.kind || data.tag, note: '', sections, stats: []}
+      }
+      if (data.quadrant) {
+        sections.push(['Position', [cardRow('Quadrant ' + data.quadrant, {sub: data.cell || ''})]])
+        return {eyebrow: 'Point', note: '', sections, stats: [cardStat('X', data.x), cardStat('Y', data.y)]}
+      }
+      if (members.length) {
+        var tag = node.el.querySelector('.ondine-annotation')
+        ;[['Attributes', 'ondine-attribute'], ['Methods', 'ondine-method']].forEach(([title, cls]) =>
+          rows(title, members.filter((m) => m.classList.contains(cls)).map((m) => cardRow('', {code: memberCode(m.textContent, cls === 'ondine-method')}))))
+        return {eyebrow: tag ? tag.textContent.replace(/[«»]/g, '').trim() : 'Class', note: '', sections, stats: []}
+      }
+      var flavour = flavours.find((k) => node.el.classList.contains(k))
+      return {eyebrow: flavour ? 'Node · ' + flavour : 'Node', note: '', sections, stats: []}
+    }
+    var drawCard = (id) => {
+      card.replaceChildren()
+      card.hidden = !id
+      if (!id) return
+      var {byId, edges, info} = model()
+      var node = byId.get(id)
+      var data = info[id] || {}
+      var incoming = edges.filter((e) => e.to === id)
+      var outgoing = edges.filter((e) => e.from === id)
+      var about = describe(node, data)
+      var title = labelOf(node)
+
+      var head = h('div', 'mmd-card-head')
+      var copy = h('div', 'mmd-card-copy')
+      copy.append(h('span', 'mmd-card-eyebrow', about.eyebrow), h('strong', 'mmd-card-title', title))
+      about.note && copy.append(h('span', 'mmd-card-note', about.note))
+      var close = h('button', 'mmd-card-close', '×')
+      close.type = 'button'
+      close.title = 'Close (Esc)'
+      close.setAttribute('aria-label', 'Close')
+      close.addEventListener('click', () => focus(null))
+      head.append(copy, close)
+
+      var counts = h('div', 'mmd-card-stats mmd-auto')
+      counts.append(...about.stats, cardStat('In', incoming.length, 'in'), cardStat('Out', outgoing.length, 'out'))
+      var body = h('div', 'mmd-card-list mmd-card-body')
+      about.sections.forEach(([text, list]) => body.append(h('span', 'mmd-card-label mmd-card-section', text), ...list))
+
+      var linked = incoming.concat(outgoing.filter((e) => !incoming.includes(e)))
+      linked.length && body.append(h('span', 'mmd-card-label mmd-card-section', 'Connections · ' + linked.length))
+      linked.forEach((edge) => {
+        var out = edge.from === id
+        var other = byId.get(out ? edge.to : edge.from)
+        if (!other) return
+        var meta = (info.links && info.links[(/L-\d+$/.exec(edge.el.id) || [])[0]]) || {}
+        var name = labelOf(other)
+        var via = meta.childCol
+          ? (out ? 'this.' + meta.childCol + ' → ' + name + '.' + meta.parentCol : name + '.' + meta.childCol + ' → this.' + meta.parentCol) + (meta.label ? ' · ' + meta.label.toLowerCase() : '')
+          : meta.type || (edge.label && edge.label.textContent.trim()) || ''
+        var row = h('button', 'mmd-row')
+        row.type = 'button'
+        row.dataset.dir = out ? 'out' : 'in'
+        var text = h('span', 'mmd-row-copy')
+        text.append(h('strong', '', name))
+        via && text.append(h('small', '', via))
+        row.append(h('span', 'mmd-row-dir', out ? '→' : '←'), text)
+        var on = () => edge.el.classList.contains('mmd-on') || tint(edge, out ? 'out' : 'in')
+        var off = () => edge.el.classList.contains('mmd-on') || tint(edge, null)
+        row.addEventListener('mouseenter', on)
+        row.addEventListener('focus', on)
+        row.addEventListener('mouseleave', off)
+        row.addEventListener('blur', off)
+        row.addEventListener('click', () => {
+          off()
+          focus(other.id)
+          center(other.el)
+        })
+        body.append(row)
+      })
+      card.append(head, counts, body)
+    }
+
     var player = h('div', 'mmd-player')
     player.hidden = true
     ;['pointerdown', 'click', 'dblclick', 'wheel'].forEach((type) => player.addEventListener(type, (e) => e.stopPropagation()))
@@ -750,6 +1013,7 @@ var mmd = (() => {
       dispose: () => {
         stop()
         player.remove()
+        card.remove()
       }
     }
   }
@@ -765,7 +1029,7 @@ var mmd = (() => {
       abort.abort()
       panzoom.destroy()
       pre._mmdMotion && pre._mmdMotion.dispose()
-      pre.querySelectorAll(':scope > .mmd-toolbar, :scope > .mmd-player').forEach((el) => el.remove())
+      pre.querySelectorAll(':scope > .mmd-toolbar, :scope > .mmd-player, :scope > .mmd-card').forEach((el) => el.remove())
     }
 
     var bar = document.createElement('div')
@@ -804,7 +1068,7 @@ var mmd = (() => {
 
     var code = pre.querySelector(':scope > code.mermaid')
     var svg = code.querySelector('svg')
-    var moves_ = motion(pre, svg, signal, active)
+    var moves_ = motion(pre, svg, signal, active, panzoom)
     pre._mmdMotion = moves_
     play.hidden = !moves_.plays
     var svgEvent = (name, fn) => svg.addEventListener(name, (e) => active() && fn(e), {signal})
@@ -920,6 +1184,8 @@ var mmd = (() => {
         node.innerHTML = svg
         var compiled = node.querySelector('svg.ondine')
         compiled && straighten(compiled)
+        compiled && cardinalize(compiled)
+        compiled && highlightMembers(compiled)
         node.setAttribute('data-processed', 'true')
       }).catch((err) => {
         node.textContent = text + '\n\n' + (err && err.message || err)
