@@ -97,7 +97,9 @@ pre#_markdown,
   border: none !important;
   padding: 20px !important;
   min-width: auto !important;
-  max-width: none !important;
+  /* the size of the option is a ceiling: a page narrower than it (or a sidebar that takes room) never scrolls */
+  /* sideways, only a table, a code block or a diagram wider than the column does */
+  max-width: 100% !important;
 }
 
 ._width-full {
@@ -404,12 +406,17 @@ pre:has(> code.mermaid) {
 }
 ._mermaid-dark pre:has(> code.mermaid) {
   background: #020202 !important;
-  border-color: #262626 !important;
+  border-color: #404040 !important;
 }
 pre > code.mermaid {
   background: none !important;
   padding: 0 !important;
   border: 0 !important;
+}
+/*a diagram narrower than its box sits in the middle of it*/
+pre > code.mermaid > svg {
+  display: block;
+  margin-inline: auto;
 }
 pre.mmd-fullscreen > code.mermaid {
   cursor: grab !important;
@@ -420,10 +427,7 @@ pre.mmd-fullscreen > code.mermaid:active {
 /*zoom/move only in fullscreen: inline shows just the fullscreen button*/
 pre:not(.mmd-fullscreen) > .mmd-toolbar > button:not([data-action=fullscreen]),
 pre:not(.mmd-fullscreen) > .mmd-toolbar > .mmd-level,
-pre:not(.mmd-fullscreen) > .mmd-find,
-.mmd-toolbar > button[hidden],
-.mmd-find[hidden],
-.mmd-map[hidden] {
+.mmd-toolbar > button[hidden] {
   display: none;
 }
 .mmd-toolbar .mmd-level {
@@ -431,132 +435,368 @@ pre:not(.mmd-fullscreen) > .mmd-find,
   align-self: center;
   text-align: center;
   font: 500 12px/1 ui-monospace, monospace;
-  color: #4f5d75;
+  color: var(--mmd-muted, #4f5d75);
   cursor: pointer;
   user-select: none;
 }
+.mmd-toolbar .mmd-level:hover {
+  color: var(--mmd-accent-text, #bf4520);
+}
+.mmd-toolbar button[disabled],
 .mmd-toolbar button.mmd-off {
   opacity: .5;
-}
-._mermaid-dark .mmd-toolbar .mmd-level {
-  color: #dedede;
-}
-/*mermaid measures each diagram in a temporary element appended to the body. While the page is still
-  hidden that element would be drawn on screen with unstyled boxes: park it out of view. A gantt takes its width from
-  this element, a shrink-wrapped one squeezes the chart into a sliver, so give it the width of the page*/
-body > div[id^="dmmd-"] {
-  position: fixed !important;
-  top: 0 !important;
-  left: -100000px !important;
-  width: 100vw !important;
   pointer-events: none;
 }
-/*node focus: dim everything but the node and its direct links*/
-svg.mmd-focus .node:not(.mmd-on),
-svg.mmd-focus path.flowchart-link:not(.mmd-on),
-svg.mmd-focus path.transition:not(.mmd-on),
-svg.mmd-focus path.relation:not(.mmd-on),
-svg.mmd-focus path.relationshipLine:not(.mmd-on),
-svg.mmd-focus g.mmd-er-card:not(.mmd-on),
-svg.mmd-focus g.statediagram-cluster:not(.mmd-on),
-svg.mmd-focus g.edgeLabel:not(.mmd-on) {
-  opacity: .15;
+/*mermaid toolbar*/
+pre:has(> code.mermaid) {
+  position: relative;
 }
-pre.mmd-fullscreen g.node {
+.mmd-toolbar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity .15s;
+}
+pre:hover > .mmd-toolbar,
+pre.mmd-fullscreen > .mmd-toolbar,
+.mmd-toolbar:focus-within {
+  opacity: 1;
+}
+.mmd-toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid var(--mmd-rule, #bfc0c0);
+  border-radius: 6px;
+  background: var(--mmd-node, #ffffff);
+  color: var(--mmd-muted, #4f5d75);
+  cursor: pointer;
+  box-shadow: none;
+}
+.mmd-toolbar button:hover {
+  color: var(--mmd-accent-text, #bf4520);
+  border-color: var(--mmd-accent, #eb6c36);
+}
+.mmd-toolbar button:active {
+  background: var(--mmd-accent-tint, rgba(235, 108, 54, .08));
+  color: var(--mmd-accent-text, #bf4520);
+  border-color: var(--mmd-accent, #eb6c36);
+}
+.mmd-toolbar button:focus-visible {
+  outline: 2px solid var(--mmd-link, #2e5aa8);
+  outline-offset: 1px;
+}
+/*mermaid fullscreen (browser viewport)*/
+pre.mmd-fullscreen:has(> code.mermaid) {
+  position: fixed !important;
+  inset: 0;
+  z-index: 2147483646;
+  width: 100vw;
+  height: 100vh;
+  max-width: none !important;
+  margin: 0 !important;
+  /*room around the diagram, so it never touches the edge of the window; the toolbar and the player sit in it*/
+  box-sizing: border-box;
+  padding: clamp(56px, 10vh, 112px) clamp(32px, 8vw, 144px) clamp(72px, 12vh, 128px) !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  resize: none;
+  overflow: hidden;
+}
+html._mmd-fullscreen,
+html._mmd-fullscreen body {
+  overflow: hidden !important;
+}
+pre.mmd-fullscreen > code.mermaid {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  /*a zoomed or moved diagram runs on to the edge of the window, past the room kept around it, it is not cut at
+    the box of the code element (a theme gives code overflow: auto)*/
+  overflow: visible !important;
+}
+pre.mmd-fullscreen > code.mermaid > svg {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+}
+pre.mmd-fullscreen > .mmd-toolbar {
+  opacity: 1;
+  top: 16px;
+  right: 16px;
+}
+/*pan/zoom*/
+.markdown-body code.mermaid,
+.markdown-theme code.mermaid {
+  display: block;
+  height: 100%;
+}
+
+
+/*emojione*/
+.emojione {
+  /* Emoji Sizing */
+  font-size: inherit;
+  height: 3ex;
+  width: 3.1ex;
+  min-height: 20px;
+  min-width: 20px;
+
+  /* Inline alignment adjust the margins  */
+  display: inline-block;
+  margin: -.2ex .15em .2ex;
+  line-height: normal;
+  vertical-align: middle;
+}
+img.emojione {
+  /* prevent img stretch */
+  width: auto;
+}
+
+/*---------------------------------------------------------------------------*/
+/*diagram motion (fullscreen): node focus, comets along links, step playback*/
+pre.mmd-fullscreen svg :is(.ondine-node, .ondine-cluster, g.node:not(.gantt-task, .pie-slice, .quadrant-point)) {
   cursor: pointer;
 }
-g.node.mmd-match > :is(rect, polygon, circle, path) {
-  stroke: #eb6c36 !important;
-  stroke-width: 2.5px !important;
+svg :is(.ondine-node, .ondine-edge, .ondine-edge-label, .ondine-cluster, g.node, path.relationshipLine, g.edgeLabel) {
+  transition: opacity .16s ease;
 }
-/*hover / focus motion*/
-pre.mmd-fullscreen svg g.node,
-pre.mmd-fullscreen svg path.flowchart-link,
-pre.mmd-fullscreen svg path.transition,
-pre.mmd-fullscreen svg path.relation,
-pre.mmd-fullscreen svg path.relationshipLine,
-pre.mmd-fullscreen svg g.edgeLabel {
-  transition: opacity .18s ease, filter .18s ease;
+svg.mmd-focus :is(.ondine-node, .ondine-edge, .ondine-edge-label, .ondine-cluster, g.node, path.relationshipLine, g.edgeLabel):not(.mmd-on) {
+  opacity: .18;
 }
-/*a gantt task, a pie slice or a quadrant point does not glow, the pointer over a gantt drives its date cursor; a journey stage is a whole column
-  and is marked by its dot and the curve, never by a border or a glow*/
-pre.mmd-fullscreen svg g.node:not(.gantt-task, .journey-stage, .pie-slice, .quadrant-point):hover {
-  filter: drop-shadow(0 0 7px #eb6c36);
+/*the focused node and the state a run has just reached take the accent: Ondine draws a shape in --_s and --_b*/
+svg :is(.ondine-node, .ondine-cluster).mmd-selected,
+svg.mmd-seq :is(.ondine-node, .ondine-cluster)[data-mmd-seq=now] {
+  --_b: var(--ondine-accent);
+  --_s: color-mix(in srgb, var(--ondine-accent) 10%, var(--ondine-bg));
+  stroke-width: 1.6px;
 }
-pre.mmd-fullscreen svg g.node:not(.gantt-task, .journey-stage, .pie-slice, .quadrant-point):hover > :is(rect, polygon, circle, path, ellipse),
-pre.mmd-fullscreen svg g.node.mmd-selected:not(.journey-stage, .pie-slice, .quadrant-point) > :is(rect, polygon, circle, path, ellipse) {
-  stroke: #eb6c36 !important;
-  stroke-width: 2px !important;
+/*hover and press, in fullscreen where a node can be clicked: the outline takes the accent, a press draws it heavier*/
+pre.mmd-fullscreen svg :is(.ondine-node, .ondine-cluster):hover {
+  --_b: var(--ondine-accent);
 }
-pre.mmd-fullscreen svg g.node.mmd-selected:not(.journey-stage, .pie-slice, .quadrant-point) {
-  filter: drop-shadow(0 0 10px #eb6c36);
+pre.mmd-fullscreen svg :is(.ondine-node, .ondine-cluster):active {
+  --_b: var(--ondine-accent);
+  --_s: var(--mmd-accent-tint);
+  stroke-width: 1.6px;
 }
-pre.mmd-fullscreen svg path.flowchart-link.mmd-hover,
-pre.mmd-fullscreen svg path.transition.mmd-hover,
-pre.mmd-fullscreen svg path.relation.mmd-hover,
-pre.mmd-fullscreen svg path.relationshipLine.mmd-hover,
-pre.mmd-fullscreen svg path.flowchart-link.mmd-on,
-pre.mmd-fullscreen svg path.transition.mmd-on,
-pre.mmd-fullscreen svg path.relation.mmd-on,
-pre.mmd-fullscreen svg path.relationshipLine.mmd-on,
-pre.mmd-fullscreen svg path.flowchart-link.mmd-peek,
-pre.mmd-fullscreen svg path.transition.mmd-peek,
-pre.mmd-fullscreen svg path.relation.mmd-peek,
-pre.mmd-fullscreen svg path.relationshipLine.mmd-peek {
-  stroke: #eb6c36 !important;
-  stroke-width: 2.2px !important;
+pre.mmd-fullscreen svg g.node:not(.gantt-task, .pie-slice, .quadrant-point):hover {
+  filter: drop-shadow(0 0 3px rgba(var(--mmd-accent-rgb, 235, 108, 54), .35));
 }
-/*links into the node are blue, links out of it stay orange*/
-pre.mmd-fullscreen svg path.flowchart-link[data-mmd-dir=in].mmd-hover,
-pre.mmd-fullscreen svg path.transition[data-mmd-dir=in].mmd-hover,
-pre.mmd-fullscreen svg path.relation[data-mmd-dir=in].mmd-hover,
-pre.mmd-fullscreen svg path.relationshipLine[data-mmd-dir=in].mmd-hover,
-pre.mmd-fullscreen svg path.flowchart-link[data-mmd-dir=in].mmd-on,
-pre.mmd-fullscreen svg path.transition[data-mmd-dir=in].mmd-on,
-pre.mmd-fullscreen svg path.relation[data-mmd-dir=in].mmd-on,
-pre.mmd-fullscreen svg path.relationshipLine[data-mmd-dir=in].mmd-on,
-pre.mmd-fullscreen svg path.flowchart-link[data-mmd-dir=in].mmd-peek,
-pre.mmd-fullscreen svg path.transition[data-mmd-dir=in].mmd-peek,
-pre.mmd-fullscreen svg path.relation[data-mmd-dir=in].mmd-peek,
-pre.mmd-fullscreen svg path.relationshipLine[data-mmd-dir=in].mmd-peek {
-  stroke: #2e5aa8 !important;
+pre.mmd-fullscreen svg g.node:not(.gantt-task, .pie-slice, .quadrant-point):active {
+  filter: drop-shadow(0 0 4px rgba(var(--mmd-accent-rgb, 235, 108, 54), .55));
 }
-._mermaid-dark pre.mmd-fullscreen svg path.flowchart-link[data-mmd-dir=in].mmd-hover,
-._mermaid-dark pre.mmd-fullscreen svg path.transition[data-mmd-dir=in].mmd-hover,
-._mermaid-dark pre.mmd-fullscreen svg path.relation[data-mmd-dir=in].mmd-hover,
-._mermaid-dark pre.mmd-fullscreen svg path.relationshipLine[data-mmd-dir=in].mmd-hover,
-._mermaid-dark pre.mmd-fullscreen svg path.flowchart-link[data-mmd-dir=in].mmd-on,
-._mermaid-dark pre.mmd-fullscreen svg path.transition[data-mmd-dir=in].mmd-on,
-._mermaid-dark pre.mmd-fullscreen svg path.relation[data-mmd-dir=in].mmd-on,
-._mermaid-dark pre.mmd-fullscreen svg path.relationshipLine[data-mmd-dir=in].mmd-on,
-._mermaid-dark pre.mmd-fullscreen svg path.flowchart-link[data-mmd-dir=in].mmd-peek,
-._mermaid-dark pre.mmd-fullscreen svg path.transition[data-mmd-dir=in].mmd-peek,
-._mermaid-dark pre.mmd-fullscreen svg path.relation[data-mmd-dir=in].mmd-peek,
-._mermaid-dark pre.mmd-fullscreen svg path.relationshipLine[data-mmd-dir=in].mmd-peek {
-  stroke: #79b1f9 !important;
+/*the diagrams the extension draws itself: the focused node glows in the accent*/
+svg g.node.mmd-selected,
+svg.mmd-seq g.node[data-mmd-seq=now] {
+  filter: drop-shadow(0 0 4px rgba(var(--mmd-accent-rgb, 235, 108, 54), .55));
 }
-/*streak: every layer is one dash centred on the same spot, each fades from clear at both ends to solid in the middle*/
+svg .ondine-edge-label.mmd-on {
+  font-weight: 600;
+}
 .mmd-flow {
-  --c: #eb6c36;
+  --c: var(--mmd-flow-out, #eb6c36);
   pointer-events: none;
   filter: drop-shadow(0 0 2px var(--c));
 }
-.mmd-flow[data-dir=in] { --c: #2e5aa8; }
-._mermaid-dark .mmd-flow[data-dir=in] { --c: #79b1f9; }
+.mmd-flow[data-dir=in] { --c: var(--mmd-flow-in, #2e5aa8); }
 .mmd-flow > :is(path, line) {
   fill: none !important;
   stroke-linecap: round;
 }
-/*the colour holds the whole streak, the middle heats up to near white (on a light page white would vanish, so it stays the colour)*/
+/*the colour holds the whole streak, on a dark page the middle heats up to near white*/
 .mmd-flow stop { stop-color: var(--c); }
-._mermaid-dark .mmd-flow .mmd-flow-body-fade stop { stop-color: color-mix(in srgb, var(--c) 55%, #fff); }
-._mermaid-dark .mmd-flow .mmd-flow-head-fade stop { stop-color: color-mix(in srgb, var(--c) 25%, #fff); }
-._mermaid-dark .mmd-flow .mmd-flow-core-fade stop { stop-color: #fff; }
+._mermaid-dark .mmd-flow .mmd-flow-body-fade stop { stop-color: color-mix(in srgb, var(--c) 55%, var(--mmd-ink, #fff)); }
+._mermaid-dark .mmd-flow .mmd-flow-head-fade stop { stop-color: color-mix(in srgb, var(--c) 25%, var(--mmd-ink, #fff)); }
+._mermaid-dark .mmd-flow .mmd-flow-core-fade stop { stop-color: var(--mmd-ink, #fff); }
 .mmd-flow > .mmd-flow-glow { stroke-width: 10px !important; stroke-opacity: .14; }
 .mmd-flow > .mmd-flow-tail { stroke-width: 2.6px !important; stroke-opacity: .7; }
 .mmd-flow > .mmd-flow-body { stroke-width: 3px !important; stroke-opacity: .85; }
 .mmd-flow > .mmd-flow-head { stroke-width: 3.4px !important; }
 .mmd-flow > .mmd-flow-core { stroke-width: 2.2px !important; }
+/*playback: the steps still to come wait dimmed, the one playing is drawn heavier*/
+svg.mmd-seq [data-mmd-seq=wait] {
+  opacity: .15;
+}
+svg [data-mmd-seq] {
+  transition: opacity .16s ease;
+}
+svg.mmd-seq .ondine-edge[data-mmd-seq=now] {
+  stroke-width: 2px;
+}
+svg.mmd-seq .ondine-edge-label[data-mmd-seq=now] {
+  font-weight: 600;
+}
+.mmd-player {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 32px);
+  padding: 6px 8px;
+  border: 1px solid var(--mmd-rule, #bfc0c0);
+  border-radius: 8px;
+  background: var(--mmd-node, #ffffff);
+  color: var(--mmd-ink, #2d3142);
+  transform: translateX(-50%);
+  font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  white-space: normal;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 8px 24px var(--mmd-shadow, rgba(45, 49, 66, .14));
+}
+.mmd-player[hidden],
+pre:not(.mmd-fullscreen) > .mmd-player {
+  display: none;
+}
+.mmd-player button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--mmd-rule, #bfc0c0);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  cursor: pointer;
+}
+.mmd-player button:hover {
+  border-color: var(--mmd-accent, #eb6c36);
+  color: var(--mmd-accent-text, #bf4520);
+}
+.mmd-player button:active {
+  background: var(--mmd-accent-tint, rgba(235, 108, 54, .08));
+  border-color: var(--mmd-accent, #eb6c36);
+  color: var(--mmd-accent-text, #bf4520);
+}
+.mmd-player button:focus-visible {
+  outline: 2px solid var(--mmd-link, #2e5aa8);
+  outline-offset: 1px;
+}
+.mmd-player .mmd-player-close {
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  line-height: 1;
+}
+.mmd-player-count {
+  flex: none;
+  font: 600 11px/1 "Geist Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  color: var(--mmd-accent-text, #bf4520);
+}
+.mmd-player-caption {
+  min-width: 0;
+  max-width: 18rem;
+  overflow: hidden;
+  font: 400 11px/1.4 "Geist Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--mmd-caption, #5a6580);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mmd-flow { display: none; }
+}
+
+/*---------------------------------------------------------------------------*/
+/*diagram-design skin for the diagrams Ondine draws: hairlines, rounded boxes, names in sans, labels and captions
+  in tracked mono. Node classes usable from markdown: A:::focal, :::store, :::external, :::input, :::optional,
+  :::security, and :::join for an entity. The tokens come from content/mermaid.js*/
+svg.ondine .ondine-label {
+  font-weight: 600;
+}
+svg.ondine .ondine-edge-label text {
+  font-family: var(--mmd-mono);
+  font-size: 11px;
+  letter-spacing: .04em;
+  fill: var(--mmd-soft);
+}
+svg.ondine .ondine-edge-label rect {
+  fill: var(--ondine-bg);
+}
+svg.ondine .ondine-cluster > :is(rect, path) {
+  stroke: var(--mmd-rule);
+  stroke-dasharray: 4 4;
+}
+svg.ondine .ondine-cluster-label,
+svg.ondine .ondine-frame-kind {
+  font-family: var(--mmd-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  fill: var(--mmd-soft);
+}
+svg.ondine .ondine-frame > rect:first-child {
+  stroke: rgba(var(--mmd-ink-rgb), .22);
+  stroke-dasharray: 4 3;
+}
+svg.ondine :is(.ondine-member, .ondine-er-type, .ondine-er-name, .ondine-er-keys) {
+  font-family: var(--mmd-mono);
+  font-size: 11px;
+}
+svg.ondine :is(.ondine-er-type, .ondine-er-keys) {
+  fill: var(--ondine-muted);
+}
+/*class members read like source code: the colours are the Prism theme's, from content/mermaid.js*/
+svg.ondine .ondine-member .mmd-syn-vis {
+  fill: var(--mmd-syn-vis);
+}
+svg.ondine .ondine-member .mmd-syn-fn {
+  fill: var(--mmd-syn-fn);
+  font-weight: 600;
+}
+svg.ondine .ondine-member .mmd-syn-type {
+  fill: var(--mmd-syn-keyword);
+}
+svg.ondine .ondine-member .mmd-syn-punct {
+  fill: var(--mmd-syn-punct);
+}
+svg.ondine .focal {
+  --_s: var(--mmd-accent-tint);
+  --_b: var(--ondine-accent);
+}
+svg.ondine .store {
+  --_s: rgba(var(--mmd-ink-rgb), .05);
+  --_b: var(--ondine-muted);
+}
+svg.ondine .external {
+  --_s: rgba(var(--mmd-ink-rgb), .03);
+  --_b: rgba(var(--mmd-ink-rgb), .30);
+}
+svg.ondine .input {
+  --_s: var(--mmd-paper2);
+  --_b: var(--mmd-soft);
+}
+svg.ondine .optional {
+  --_s: rgba(var(--mmd-ink-rgb), .02);
+  --_b: rgba(var(--mmd-ink-rgb), .20);
+}
+svg.ondine .security {
+  --_s: var(--mmd-accent-tint);
+  --_b: color-mix(in srgb, var(--ondine-accent) 50%, transparent);
+}
+svg.ondine :is(.optional, .security, .join) > :is(rect, path, polygon, circle, ellipse) {
+  stroke-dasharray: 4 3;
+}
+svg.ondine .join {
+  --_s: rgba(var(--mmd-ink-rgb), .04);
+}
+
 /*node popup card, diagram-design skin: flat paper, hairline rules, accent only on the focal marks*/
 .mmd-card {
   --c-paper: #ffffff;
@@ -836,346 +1076,33 @@ pre.mmd-fullscreen svg path.relationshipLine[data-mmd-dir=in].mmd-peek {
   color: var(--c-soft);
   overflow-wrap: anywhere;
 }
-.dbml-hit {
-  transition: fill .16s ease;
-}
-.dbml-row.dbml-hot .dbml-hit {
-  fill: rgba(235, 108, 54, .16);
-}
-.dbml-hit-line {
-  pointer-events: stroke;
-}
-/*sequence playback: ordered messages, a token on the current one, the rest dimmed*/
-svg.mmd-seq [data-mmd-seq=wait] {
-  opacity: .15;
-}
-svg [data-mmd-seq] {
-  transition: opacity .16s ease;
-}
-/*the message being played keeps its own colours, the comet and a heavier line mark it*/
-svg.mmd-seq line[data-mmd-seq=now],
-svg.mmd-seq path[data-mmd-seq=now] {
-  stroke-width: 2px !important;
-}
-svg.mmd-seq text.messageText[data-mmd-seq=now] {
-  font-weight: 600;
-}
-/*state playback: the state just reached is lit, the ones reached before keep their colours, the rest wait*/
-svg.mmd-seq g.node:not(.journey-stage)[data-mmd-seq=now] > :is(rect, circle, polygon, ellipse):not(.mmd-er-box, .mmd-er-fill) {
-  fill: rgba(235, 108, 54, .08) !important;
-  stroke: #eb6c36 !important;
-  stroke-width: 1.6px !important;
-}
-svg.mmd-seq g.node[data-mmd-seq=now] .outer-path path[stroke]:not([stroke=none]) {
-  stroke: #eb6c36 !important;
-}
-svg.mmd-seq g.node[data-mmd-seq=now] > .mmd-er-box {
-  stroke: #eb6c36 !important;
-  stroke-width: 1.6px !important;
-}
-svg.mmd-seq g.node[data-mmd-seq=now] > .mmd-er-fill {
-  fill: rgba(235, 108, 54, .08) !important;
-}
-svg.mmd-seq g.statediagram-cluster[data-mmd-seq=now] rect.outer {
-  stroke: #eb6c36 !important;
-  stroke-dasharray: none !important;
-}
-._mermaid-dark svg.mmd-seq g.node:not(.journey-stage)[data-mmd-seq=now] > :is(rect, circle, polygon, ellipse):not(.mmd-er-box, .mmd-er-fill) {
-  fill: rgba(235, 108, 54, .14) !important;
-}
-.mmd-token {
-  fill: #eb6c36;
-  pointer-events: none;
-}
-/*indeterminate progress: a bar slides along a line that has no direction*/
-.mmd-indet {
-  fill: none !important;
-  stroke: #2e5aa8 !important;
-  stroke-width: 3.2px !important;
-  stroke-linecap: round;
-  stroke-dasharray: 0.3 0.7;
-  stroke-dashoffset: 0.3;
-  vector-effect: non-scaling-stroke;
-  pointer-events: none;
-  animation: mmd-indet 1.2s linear infinite;
-}
-._mermaid-dark .mmd-indet {
-  stroke: #79b1f9 !important;
-}
-@keyframes mmd-indet {
-  from { stroke-dashoffset: 0.3; }
-  to { stroke-dashoffset: -1; }
-}
-.mmd-player {
-  position: absolute;
-  left: 50%;
-  bottom: 16px;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: calc(100% - 32px);
-  padding: 6px 8px;
-  border: 1px solid #bfc0c0;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #2d3142;
-  transform: translateX(-50%);
-  font-family: "Geist", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
-  white-space: normal;
-  font-size: 12px;
-  line-height: 1.4;
-  box-shadow: 0 8px 24px rgba(45, 49, 66, .14);
-}
-.mmd-player[hidden] {
+/*the card belongs to fullscreen, like the motion it comes from; members take the syntax colours of the diagram*/
+pre:not(.mmd-fullscreen) > .mmd-card {
   display: none;
 }
-._mermaid-dark .mmd-player {
-  border-color: #404040;
-  background: #0f0f0f;
-  color: #f5f5f5;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .6);
-}
-.mmd-player button {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  margin: 0;
-  padding: 0;
-  border: 1px solid #bfc0c0;
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  box-shadow: none;
-  cursor: pointer;
-}
-._mermaid-dark .mmd-player button {
-  border-color: #404040;
-}
-.mmd-player button:hover {
-  border-color: #eb6c36;
-  color: #eb6c36;
-}
-.mmd-player button:focus-visible {
-  outline: 2px solid #2e5aa8;
-  outline-offset: 1px;
-}
-.mmd-player .mmd-player-close {
-  width: 24px;
-  height: 24px;
-  font: 14px/1 inherit;
-}
-.mmd-player-count {
-  flex: none;
-  font: 600 11px/1 "Geist Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
-  color: #bf4520;
-}
-._mermaid-dark .mmd-player-count {
-  color: #eb6c36;
-}
-.mmd-player-caption {
-  min-width: 0;
-  max-width: 18rem;
-  overflow: hidden;
-  font: 400 11px/1.4 "Geist Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #5a6580;
-}
-._mermaid-dark .mmd-player-caption {
-  color: #a3a3a3;
-}
-@media (prefers-reduced-motion: reduce) {
-  .mmd-indet { animation: none; stroke-dasharray: none; }
-  .mmd-flow { display: none; }
-  .mmd-card { animation: none; }
-}
-.mmd-find {
-  position: absolute;
-  top: 52px;
-  right: 16px;
-  z-index: 2;
-  width: 220px;
-  padding: 6px 10px;
-  margin: 0;
-  border: 1px solid #bfc0c0;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #2d3142;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-size: 13px;
-  box-shadow: none;
-}
-.mmd-find:focus {
-  outline: none;
-  border-color: #eb6c36;
-}
-._mermaid-dark .mmd-find {
-  background: #0f0f0f;
-  border-color: #404040;
-  color: #f5f5f5;
-}
-/*overview map*/
-.mmd-map {
-  position: absolute;
-  left: 16px;
-  bottom: 16px;
-  z-index: 2;
-  overflow: hidden;
-  border: 1px solid #bfc0c0;
-  border-radius: 6px;
-  background: #ffffff;
-  cursor: pointer;
-  touch-action: none;
-}
-.mmd-map > svg {
-  display: block;
-  pointer-events: none;
-}
-.mmd-map-view {
-  position: absolute;
-  box-sizing: border-box;
-  border: 1.5px solid #eb6c36;
-  background: rgba(235, 108, 54, 0.12);
-  pointer-events: none;
-}
-._mermaid-dark .mmd-map {
-  background: #0f0f0f;
-  border-color: #404040;
-}
-/*mermaid toolbar*/
-pre:has(> code.mermaid) {
-  position: relative;
-}
-.mmd-toolbar {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity .15s;
-}
-pre:hover > .mmd-toolbar,
-pre.mmd-fullscreen > .mmd-toolbar,
-.mmd-toolbar:focus-within {
-  opacity: 1;
-}
-.mmd-toolbar button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  margin: 0;
-  border: 1px solid #bfc0c0;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #4f5d75;
-  cursor: pointer;
-  box-shadow: none;
-}
-.mmd-toolbar button:hover {
-  color: #eb6c36;
-  border-color: #eb6c36;
-}
-._mermaid-dark .mmd-toolbar button {
-  background: #0f0f0f;
-  border-color: #404040;
-  color: #dedede;
-}
-._mermaid-dark .mmd-toolbar button:hover {
-  color: #79b1f9;
-  border-color: #79b1f9;
-}
-/*mermaid fullscreen (browser viewport)*/
-pre.mmd-fullscreen:has(> code.mermaid) {
-  position: fixed !important;
-  inset: 0;
-  z-index: 2147483646;
-  width: 100vw;
-  height: 100vh;
-  max-width: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  resize: none;
-  overflow: hidden;
-}
-html._mmd-fullscreen,
-html._mmd-fullscreen body {
-  overflow: hidden !important;
-}
-pre.mmd-fullscreen > code.mermaid {
-  display: flex !important;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-}
-pre.mmd-fullscreen > code.mermaid > svg {
-  width: 100% !important;
-  height: 100% !important;
-  max-width: none !important;
-}
-pre.mmd-fullscreen > .mmd-toolbar {
-  opacity: 1;
-  top: 16px;
-  right: 16px;
-}
-/*pan/zoom*/
-.markdown-body code.mermaid,
-.markdown-theme code.mermaid {
-  display: block;
-  height: 100%;
-}
-
-/*mermaid text bold effect*/
-svg[id^=mermaid] text {
-  stroke: none !important;
-}
-
-/*emojione*/
-.emojione {
-  /* Emoji Sizing */
-  font-size: inherit;
-  height: 3ex;
-  width: 3.1ex;
-  min-height: 20px;
-  min-width: 20px;
-
-  /* Inline alignment adjust the margins  */
-  display: inline-block;
-  margin: -.2ex .15em .2ex;
-  line-height: normal;
-  vertical-align: middle;
-}
-img.emojione {
-  /* prevent img stretch */
-  width: auto;
-}
-/*class diagram: hover and focus keep the colours of the design, no glow*/
-pre.mmd-fullscreen svg[aria-roledescription=classDiagram] g.node:hover,
-pre.mmd-fullscreen svg[aria-roledescription=classDiagram] g.node.mmd-selected {
-  filter: none;
-}
-
-/*class popup: members read like code*/
 .mmd-member {
-  font: 400 11px/1.5 var(--mono);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 400 11px/1.4 var(--mono);
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
-.mmd-card .tok-vis { color: #9a6e3a; }
-.mmd-card .tok-fn, .mmd-card .tok-type { color: #dd4a68; }
-.mmd-card .tok-keyword { color: #07a; }
-.mmd-card .tok-punct { color: #999; }
-.mmd-card .tok-constant { color: #905; }
-._mermaid-dark .mmd-card .tok-vis, ._mermaid-dark .mmd-card .tok-punct { color: #f8f8f2; }
-._mermaid-dark .mmd-card .tok-fn, ._mermaid-dark .mmd-card .tok-type { color: #e6db74; }
-._mermaid-dark .mmd-card .tok-keyword { color: #66d9ef; }
-._mermaid-dark .mmd-card .tok-constant { color: #f92672; }
+.mmd-member .mmd-syn-vis { color: var(--mmd-syn-vis); }
+.mmd-member .mmd-syn-fn { color: var(--mmd-syn-fn); font-weight: 600; }
+.mmd-member .mmd-syn-type { color: var(--mmd-syn-keyword); }
+.mmd-member .mmd-syn-punct { color: var(--mmd-syn-punct); }
+
+
+/*entity relationships: the cardinality in words, on the colour of its line*/
+svg.ondine .ondine-er-cardinality rect {
+  fill: var(--ondine-bg);
+  stroke: none;
+}
+svg.ondine .ondine-er-cardinality text {
+  fill: var(--_l);
+  stroke: none;
+  font-family: var(--mmd-mono);
+  font-size: 11px;
+  font-weight: 600;
+}

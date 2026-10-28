@@ -64,6 +64,8 @@ async function buildVendor () {
   const mdc = sass.compile(join(here, 'entries/mdc.scss'), {
     loadPaths: [mod()],
     quietDeps: true,
+    // MDC 0.x is written with @import and global variables, @use cannot replace it before the MDC upgrade
+    silenceDeprecations: ['import'],
     sourceMap: false,
   })
   await writeFile(vendor('mdc.min.css'), css(mdc.css))
@@ -78,16 +80,10 @@ async function buildVendor () {
   await copyDir(join(mj, 'input/tex/extensions'), vendor('mathjax/extensions'), (n) => n.endsWith('.js'))
   await copyDir(join(mj, 'output/chtml/fonts/woff-v2'), vendor('mathjax/fonts'), (n) => n.endsWith('.woff'))
 
-  step('mermaid')
-  // https://github.com/mermaid-js/mermaid/issues/5378
-  // https://discourse.mozilla.org/t/cannot-inject-a-javascript-file-because-of-a-csp-limitations/128649
-  const mermaid = patch(
-    await read(mod('mermaid/dist/mermaid.min.js')),
-    'Function("return this")',
-    '(() => globalThis)',
-    'mermaid.min.js'
-  ).replaceAll('Function("return this")', '(() => globalThis)')
-  await writeFile(vendor('mermaid.min.js'), mermaid)
+  step('ondine')
+  // the compiler runs in the background, the content script asks it for the svg of a diagram
+  await writeFile(vendor('ondine.min.js'), await js(await bundle('ondine.mjs')))
+  await cp(mod('ondine/dist/internal/all.generated.wasm'), vendor('ondine.wasm'))
 
   step('prism')
   const prism = mod('prismjs')

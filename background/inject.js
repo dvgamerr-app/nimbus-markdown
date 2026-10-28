@@ -44,7 +44,7 @@ md.inject = ({storage: {state}}) => (id) => {
         '/vendor/mithril.min.js',
         state.content.syntax && ['/vendor/prism.min.js', '/vendor/prism-autoloader.min.js', '/content/prism.js'],
         state.content.emoji && '/content/emoji.js',
-        state.content.mermaid && ['/vendor/mermaid.min.js', '/vendor/panzoom.min.js', '/content/draw.js', '/content/dbml.js', '/content/journey.js', '/content/timeline.js', '/content/gantt.js', '/content/pie.js', '/content/quadrant.js', '/content/requirement.js', '/content/gitgraph.js', '/content/c4.js', '/content/mindmap.js', '/content/mermaid.js'],
+        state.content.mermaid && ['/vendor/panzoom.min.js', '/content/draw.js', '/content/dbml.js', '/content/journey.js', '/content/timeline.js', '/content/gantt.js', '/content/pie.js', '/content/quadrant.js', '/content/requirement.js', '/content/gitgraph.js', '/content/c4.js', '/content/mindmap.js', '/content/mermaid.js'],
         state.content.mathjax && ['/content/mathjax.js', '/vendor/mathjax/tex-mml-chtml.js'],
         '/content/index.js',
         '/content/scroll.js',

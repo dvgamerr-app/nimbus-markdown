@@ -111,8 +111,15 @@ pre.appendChild(code)
 document.getElementById('_html').appendChild(pre)
 state.html = document.getElementById('_html').innerHTML
 
-var files = ['vendor/mermaid.min.js', 'vendor/panzoom.min.js', 'content/draw.js', 'content/dbml.js', 'content/journey.js',
-  'content/timeline.js', 'content/gantt.js', 'content/pie.js', 'content/quadrant.js', 'content/requirement.js',
+// the extension asks its background for the svg, here the same background module compiles in the page
+var md = {}
+var ondineBackground
+var chrome = {runtime: {
+  getURL: (path) => 'ext' + path,
+  sendMessage: (req, done) => ondineBackground.render(req.source, req.options).then(done)
+}}
+var files = ['vendor/ondine.min.js', 'background/ondine.js', 'vendor/panzoom.min.js', 'content/draw.js', 'content/dbml.js',
+  'content/journey.js', 'content/timeline.js', 'content/gantt.js', 'content/pie.js', 'content/quadrant.js', 'content/requirement.js',
   'content/gitgraph.js', 'content/c4.js', 'content/mindmap.js', 'content/mermaid.js']
 var load = (i) => {
   if (i === files.length) return start()
@@ -124,6 +131,7 @@ var load = (i) => {
 }
 // render, then open the diagram fullscreen so the whole viewer is ready to try
 var start = () => {
+  ondineBackground = md.ondine()
   mmd.render()
   var wait = setInterval(() => {
     var full = document.querySelector('pre .mmd-toolbar button[title="Fullscreen"]')
@@ -131,9 +139,6 @@ var start = () => {
     clearInterval(wait)
     document.getElementById('loading').remove()
     full.click()
-    // a phone has no room for the overview map next to the diagram, it stays one key (M) away
-    var map = document.querySelector('pre.mmd-fullscreen .mmd-toolbar button[title^="Overview map"]')
-    innerWidth < 600 && map && document.querySelector('pre.mmd-fullscreen .mmd-map') && map.click()
     parent !== window && parent.postMessage({nimbusDemo: 'ready', kind}, '*')
   }, 50)
 }

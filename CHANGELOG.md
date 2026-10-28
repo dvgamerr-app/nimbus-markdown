@@ -1,6 +1,14 @@
 
 # Change Log
 
+## Unreleased
+- draw Mermaid diagrams with Ondine instead of Mermaid: the background compiles each diagram to SVG with WebAssembly, the colours follow the Nimbus light and dark themes through `--ondine-*` custom properties
+- keep the self-drawn journey, timeline, gantt, pie, quadrant, requirement, git graph, c4 and mindmap renderers, and skin the Ondine diagrams in the same diagram-design style, node classes like `A:::focal` included
+- fullscreen motion on Ondine: hover a node to light its links, click it for comets running blue into it and orange out of it, play sequences, state machines, journeys and timelines step by step (P, [ and ])
+- drop the find box, overview map and node popup of the old viewer
+- `zenuml` diagrams are not supported by Ondine and show their source with the error
+- update every dependency except MathJax 4, Mithril 2 and the Material Design components, which need their own migrations
+
 ## v6.0 - 2026-10-21
 - rename to Nimbus Markdown, with Nimbus light and dark themes as the default
 - markdown-it as the only compiler

@@ -29,6 +29,7 @@
   "background" : {
     "scripts": [
       "/vendor/markdown-it.min.js",
+      "/vendor/ondine.min.js",
 
       "/background/compilers/markdown-it.js",
 
@@ -39,6 +40,7 @@
       "/background/messages.js",
       "/background/mathjax.js",
       "/background/xhr.js",
+      "/background/ondine.js",
       "/background/icon.js",
 
       "/background/index.js"
@@ -67,6 +69,10 @@
       ]
     }
   ],
+
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
 
   "permissions": [
     "storage",

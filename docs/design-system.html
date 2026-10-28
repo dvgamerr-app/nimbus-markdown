@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nimbus Diagram Design System</title>
+<style>
+:root {
+  /* color: light theme (content/mermaid.js tokens.light) */
+  --paper: #f5f5f5; --paper-2: #ececec; --node: #ffffff;
+  --ink: #2d3142; --muted: #4f5d75; --soft: #7a8399;
+  --rule: rgba(45,49,66,.12); --rule-solid: #bfc0c0;
+  --accent: #eb6c36; --accent-tint: rgba(235,108,54,.08); --accent-text: #bf4520;
+  --link: #2e5aa8; --danger: #c0401f; --flow-out: #eb6c36; --flow-in: #2e5aa8;
+  --s1: #7c8f6f; --s2: #5e7a9b; --s3: #b8915a; --s4: #9c6b50; --s5: #6e6479;
+  /* spacing: 4px base grid (content/draw.js grid()) */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-6: 24px; --space-8: 32px;
+  /* radius */
+  --radius-xs: 2px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 16px;
+  --font-sans: 'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+}
+:root[data-theme="dark"] {
+  --paper: #020202; --paper-2: #0f0f0f; --node: #0f0f0f;
+  --ink: #f5f5f5; --muted: #dedede; --soft: #a3a3a3;
+  --rule: rgba(245,245,245,.12); --rule-solid: #404040;
+  --accent: #79b1f9; --accent-tint: rgba(121,177,249,.10); --accent-text: #a8cdfc;
+  --link: #dcaf61; --danger: #f07f77; --flow-out: #79b1f9; --flow-in: #dcaf61;
+  --s1: #69ba7c; --s2: #79b1f9; --s3: #dcaf61; --s4: #f07f77; --s5: #a3a3a3;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #020202; --paper-2: #0f0f0f; --node: #0f0f0f;
+    --ink: #f5f5f5; --muted: #dedede; --soft: #a3a3a3;
+    --rule: rgba(245,245,245,.12); --rule-solid: #404040;
+    --accent: #79b1f9; --accent-tint: rgba(121,177,249,.10); --accent-text: #a8cdfc;
+    --link: #dcaf61; --danger: #f07f77; --flow-out: #79b1f9; --flow-in: #dcaf61;
+    --s1: #69ba7c; --s2: #79b1f9; --s3: #dcaf61; --s4: #f07f77; --s5: #a3a3a3;
+  }
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.6 var(--font-sans); }
+a { color: var(--link); }
+code, .mono { font-family: var(--font-mono); font-size: .86em; }
+code { background: var(--paper-2); border: 1px solid var(--rule); border-radius: var(--radius-xs); padding: 1px 5px; }
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); max-width: 1120px; margin: 0 auto; }
+nav { position: sticky; top: 0; align-self: start; height: 100vh; overflow: auto; padding: var(--space-8) var(--space-4); border-right: 1px solid var(--rule); }
+nav .brand { font: 600 11px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--accent-text); margin-bottom: var(--space-4); }
+nav a { display: block; padding: 5px 0; color: var(--muted); text-decoration: none; font-size: 13px; }
+nav a:hover { color: var(--accent-text); }
+main { padding: var(--space-8) var(--space-8) 96px; min-width: 0; }
+header.hero { padding-bottom: var(--space-6); border-bottom: 1px solid var(--rule); margin-bottom: var(--space-8); }
+.eyebrow { font: 500 10px/1 var(--font-mono); letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+h1 { font-size: 34px; line-height: 1.15; margin: var(--space-3) 0 var(--space-2); letter-spacing: -.02em; }
+h2 { font-size: 22px; margin: 0 0 var(--space-2); letter-spacing: -.01em; }
+h3 { font-size: 14px; margin: var(--space-6) 0 var(--space-2); }
+p { margin: 0 0 var(--space-3); color: var(--muted); }
+section { padding: var(--space-8) 0; border-bottom: 1px solid var(--rule); scroll-margin-top: 0; }
+section:last-child { border-bottom: 0; }
+.theme-toggle { float: right; border: 1px solid var(--rule-solid); background: var(--node); color: var(--ink); border-radius: var(--radius-sm); padding: 6px 12px; font: 500 12px var(--font-mono); cursor: pointer; }
+.theme-toggle:hover { border-color: var(--accent); color: var(--accent-text); }
+.theme-toggle:focus-visible, nav a:focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin: var(--space-3) 0; }
+th, td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font: 500 10px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.table-wrap { overflow-x: auto; }
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3); }
+.swatch { border: 1px solid var(--rule-solid); border-radius: var(--radius-md); background: var(--node); overflow: hidden; }
+.swatch i { display: block; height: 48px; border-bottom: 1px solid var(--rule-solid); }
+.swatch div { padding: var(--space-2) var(--space-3); font-size: 12px; line-height: 1.4; }
+.swatch b { display: block; font-weight: 600; color: var(--ink); }
+.swatch span { color: var(--soft); font: 11px var(--font-mono); }
+.scale { display: grid; gap: var(--space-2); }
+.scale-row { display: grid; grid-template-columns: 90px 56px 1fr; align-items: center; gap: var(--space-3); font-size: 12px; }
+.scale-row .bar { height: 16px; background: var(--accent-tint); border: 1px solid var(--accent); border-radius: var(--radius-xs); }
+.demo { border: 1px solid var(--rule-solid); border-radius: var(--radius-md); background: var(--node); padding: var(--space-4); margin: var(--space-3) 0; }
+.radii { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.radii div { width: 96px; height: 64px; background: var(--accent-tint); border: 1px solid var(--accent); display: grid; place-items: center; font: 11px var(--font-mono); color: var(--accent-text); }
+.type-row { display: flex; align-items: baseline; gap: var(--space-4); padding: var(--space-2) 0; border-bottom: 1px solid var(--rule); }
+.type-row .meta { flex: 0 0 150px; font: 11px var(--font-mono); color: var(--soft); }
+.btn-demo { display: inline-grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--rule-solid); border-radius: var(--radius-sm); background: var(--node); color: var(--muted); font-size: 14px; cursor: pointer; }
+.btn-demo:hover { color: var(--accent-text); border-color: var(--accent); }
+.player-demo { display: inline-flex; align-items: center; gap: var(--space-2); padding: 6px var(--space-2); border: 1px solid var(--rule-solid); border-radius: var(--radius-md); background: var(--node); font-size: 12px; }
+.player-demo .count { font: 600 11px/1 var(--font-mono); color: var(--accent-text); }
+.node-demo { display: inline-block; padding: var(--space-2) var(--space-4); border: 1px solid var(--ink); border-radius: var(--radius-sm); background: var(--node); font-size: 13px; }
+.node-demo.sel { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--paper)); border-width: 1.6px; }
+.do-dont { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.do-dont > div { border: 1px solid var(--rule-solid); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); background: var(--node); }
+.do-dont h4 { margin: 0 0 var(--space-2); font: 600 11px var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
+.do h4 { color: var(--s1); } .dont h4 { color: var(--danger); }
+.do-dont ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+@media (max-width: 760px) {
+  .layout { grid-template-columns: 1fr; }
+  nav { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--rule); padding: var(--space-4); }
+  main { padding: var(--space-6) var(--space-4) 64px; }
+  .do-dont { grid-template-columns: 1fr; }
+  .scale-row { grid-template-columns: 70px 44px 1fr; }
+  .type-row { flex-direction: column; gap: var(--space-1); }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav aria-label="Sections">
+  <div class="brand">Nimbus · DS</div>
+  <a href="#principles">Principles</a>
+  <a href="#color">Color</a>
+  <a href="#typography">Typography</a>
+  <a href="#spacing">Spacing</a>
+  <a href="#radius">Radius &amp; stroke</a>
+  <a href="#elevation">Elevation &amp; motion</a>
+  <a href="#states">States</a>
+  <a href="#components">Components</a>
+  <a href="#theming">Theming</a>
+  <a href="#guidelines">Guidelines</a>
+</nav>
+<main>
+<header class="hero">
+  <button class="theme-toggle" id="theme" type="button" aria-label="Toggle theme">Toggle theme</button>
+  <div class="eyebrow">Design system · v1</div>
+  <h1>Nimbus Diagram Design System</h1>
+  <p>Tokens, spacing and components for the Mermaid, DBML and diagram renderers in Nimbus Markdown. Derived from <code>content/mermaid.js</code>, <code>content/index.css</code> and the renderers in <code>content/*.js</code>. Everything below is drawn with the live tokens, so use the toggle to check both themes.</p>
+</header>
+
+<section id="principles">
+  <h2>Principles</h2>
+  <table>
+    <tr><th>Principle</th><th>Meaning</th></tr>
+    <tr><td>Quiet paper, one accent</td><td>Neutral surfaces and ink; a single accent marks focus, selection and the active step.</td></tr>
+    <tr><td>One grid</td><td>All geometry snaps to a 4px grid (<code>grid(v) = ceil(v/4)*4</code>); spacing comes from a small fixed scale.</td></tr>
+    <tr><td>Themes switch without recompiling</td><td>Colors reach the SVG through <code>--ondine-*</code> custom properties, so light/dark is a property swap only.</td></tr>
+    <tr><td>Mono for labels, sans for content</td><td>Eyebrows, chips and counters use Geist Mono; node text uses Geist.</td></tr>
+  </table>
+</section>
+
+<section id="color">
+  <h2>Color</h2>
+  <p>Semantic tokens. Raw values are the light / dark pair from <code>tokens</code> in <code>content/mermaid.js</code>.</p>
+  <h3>Surface and ink</h3>
+  <div class="swatches">
+    <div class="swatch"><i style="background:var(--paper)"></i><div><b>paper</b><span>#f5f5f5 / #020202</span></div></div>
+    <div class="swatch"><i style="background:var(--paper-2)"></i><div><b>paper-2</b><span>#ececec / #0f0f0f</span></div></div>
+    <div class="swatch"><i style="background:var(--node)"></i><div><b>node</b><span>#ffffff / #0f0f0f</span></div></div>
+    <div class="swatch"><i style="background:var(--ink)"></i><div><b>ink</b><span>#2d3142 / #f5f5f5</span></div></div>
+    <div class="swatch"><i style="background:var(--muted)"></i><div><b>muted</b><span>#4f5d75 / #dedede</span></div></div>
+    <div class="swatch"><i style="background:var(--soft)"></i><div><b>soft</b><span>#7a8399 / #a3a3a3</span></div></div>
+    <div class="swatch"><i style="background:var(--rule-solid)"></i><div><b>rule-solid</b><span>#bfc0c0 / #404040</span></div></div>
+  </div>
+  <h3>Accent and status</h3>
+  <div class="swatches">
+    <div class="swatch"><i style="background:var(--accent)"></i><div><b>accent</b><span>#eb6c36 / #79b1f9</span></div></div>
+    <div class="swatch"><i style="background:var(--accent-text)"></i><div><b>accent-text</b><span>#bf4520 / #a8cdfc</span></div></div>
+    <div class="swatch"><i style="background:var(--link)"></i><div><b>link</b><span>#2e5aa8 / #dcaf61</span></div></div>
+    <div class="swatch"><i style="background:var(--danger)"></i><div><b>danger</b><span>#c0401f / #f07f77</span></div></div>
+  </div>
+  <h3>Flow direction</h3>
+  <p>Links out of the focused node and links into it. In dark they are blue and amber, so the two directions stay apart.</p>
+  <div class="swatches">
+    <div class="swatch"><i style="background:var(--flow-out)"></i><div><b>flow-out</b><span>#eb6c36 / #79b1f9</span></div></div>
+    <div class="swatch"><i style="background:var(--flow-in)"></i><div><b>flow-in</b><span>#2e5aa8 / #dcaf61</span></div></div>
+    <div class="swatch"><i style="background:var(--danger)"></i><div><b>flow-lost</b><span>#c0401f / #f07f77</span></div></div>
+  </div>
+  <h3>Data series</h3>
+  <p>Accent comes first, then five categorical colors, then muted and soft (<code>--ondine-series-1…8</code>).</p>
+  <div class="swatches">
+    <div class="swatch"><i style="background:var(--s1)"></i><div><b>series-1</b><span>#7c8f6f / #69ba7c</span></div></div>
+    <div class="swatch"><i style="background:var(--s2)"></i><div><b>series-2</b><span>#5e7a9b / #79b1f9</span></div></div>
+    <div class="swatch"><i style="background:var(--s3)"></i><div><b>series-3</b><span>#b8915a / #dcaf61</span></div></div>
+    <div class="swatch"><i style="background:var(--s4)"></i><div><b>series-4</b><span>#9c6b50 / #f07f77</span></div></div>
+    <div class="swatch"><i style="background:var(--s5)"></i><div><b>series-5</b><span>#6e6479 / #a3a3a3</span></div></div>
+  </div>
+  <p style="margin-top:16px">Use <code>accent-text</code>, not <code>accent</code>, for small text on paper: it keeps contrast on the light theme.</p>
+</section>
+
+<section id="typography">
+  <h2>Typography</h2>
+  <p>Sans: <code>Geist, Inter, system-ui</code>. Mono: <code>Geist Mono, ui-monospace, Consolas</code>.</p>
+  <div class="demo">
+    <div class="type-row"><span class="meta">DBML title · sans 14.5 / 700</span><span style="font:700 14.5px var(--font-sans)">Table or node title</span></div>
+    <div class="type-row"><span class="meta">Node · sans 13 (Ondine) / 11 labels</span><span style="font:13px var(--font-sans)">Node and edge text</span></div>
+    <div class="type-row"><span class="meta">Mono · 11.5 / 400</span><span style="font:11.5px var(--font-mono)">column_name  varchar(64)</span></div>
+    <div class="type-row"><span class="meta">Eyebrow · mono 8–10 / tracked</span><span style="font:500 10px var(--font-mono);letter-spacing:.15em;text-transform:uppercase;color:var(--muted)">Section label</span></div>
+    <div class="type-row"><span class="meta">Chip · mono 9 / tracked .5</span><span style="font:9px var(--font-mono);letter-spacing:.05em;color:var(--muted)">PK  FK  UNIQUE</span></div>
+    <div class="type-row"><span class="meta">Counter · mono 11 / 600</span><span style="font:600 11px var(--font-mono);color:var(--accent-text)">3 / 12</span></div>
+  </div>
+  <p>Eyebrows are uppercase with letter-spacing of 0.18em (1.44 at 8px, 1.62 at 9px, 1.5 at 10px); the renderers add tracking per character.</p>
+</section>
+
+<section id="spacing">
+  <h2>Spacing</h2>
+  <p>A 4px base grid. Layout sizes snap up to the next multiple of 4 via <code>grid()</code> in <code>content/draw.js</code>. Components use only the steps below.</p>
+  <div class="demo scale">
+    <div class="scale-row"><code>space-1</code><span class="mono">4px</span><div class="bar" style="width:4px"></div></div>
+    <div class="scale-row"><code>space-2</code><span class="mono">8px</span><div class="bar" style="width:8px"></div></div>
+    <div class="scale-row"><code>space-3</code><span class="mono">12px</span><div class="bar" style="width:12px"></div></div>
+    <div class="scale-row"><code>space-4</code><span class="mono">16px</span><div class="bar" style="width:16px"></div></div>
+    <div class="scale-row"><code>space-6</code><span class="mono">24px</span><div class="bar" style="width:24px"></div></div>
+    <div class="scale-row"><code>space-8</code><span class="mono">32px</span><div class="bar" style="width:32px"></div></div>
+  </div>
+  <h3>Where each step is used</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Token</th><th>Value</th><th>Used for</th><th>Source</th></tr>
+    <tr><td>space-1</td><td>4</td><td>Toolbar button gap; label offset</td><td><code>.mmd-toolbar</code></td></tr>
+    <tr><td>space-2</td><td>8</td><td>Toolbar inset; player gap; timeline padding (<code>PAD</code>)</td><td><code>.mmd-player</code>, <code>timeline.js</code></td></tr>
+    <tr><td>space-3</td><td>12</td><td>Axis label inset; hit-area padding</td><td><code>journey.js</code></td></tr>
+    <tr><td>space-4</td><td>16</td><td>Player offset from edge; fullscreen toolbar inset; DBML cell padding</td><td><code>index.css</code>, <code>dbml.js</code></td></tr>
+    <tr><td>space-6</td><td>24</td><td>Timeline <code>GAP</code>; DBML/journey <code>MARGIN</code></td><td><code>timeline.js</code>, <code>dbml.js</code></td></tr>
+    <tr><td>space-8</td><td>32</td><td>Canvas <code>MARGIN</code> for gantt, c4, gitgraph, mindmap, pie, quadrant, requirement, timeline</td><td><code>content/*.js</code></td></tr>
+  </table></div>
+  <h3>Layout constants</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Constant</th><th>Value</th><th>Meaning</th></tr>
+    <tr><td>Canvas margin</td><td>32 (24 in dbml, journey)</td><td>Empty space between the diagram and the SVG edge</td></tr>
+    <tr><td>DBML node gap</td><td>56</td><td>Space between tables; link channels run here</td></tr>
+    <tr><td>DBML group padding</td><td>24</td><td>Inside a dashed group frame</td></tr>
+    <tr><td>Journey column</td><td>200</td><td>Width of one stage</td></tr>
+    <tr><td>Chip height</td><td>16 (gitgraph, dbml)</td><td>Tag and badge height; tab is 20</td></tr>
+    <tr><td>Fullscreen padding</td><td><code>clamp(56px,10vh,112px)</code> / <code>clamp(32px,8vw,144px)</code> / <code>clamp(72px,12vh,128px)</code></td><td>Room around a fullscreen diagram for toolbar and player</td></tr>
+    <tr><td>Control size</td><td>28 (close button 24)</td><td>Toolbar and player buttons</td></tr>
+  </table></div>
+  <h3>Rules</h3>
+  <ul>
+    <li>New work picks a step from the scale. Every size is a multiple of 4. Larger layout constants (DBML node gap 56, journey column 200) are multiples of the base and sit above the scale.</li>
+    <li>Gaps inside a component are smaller than gaps between components.</li>
+    <li>Text widths and box sizes round up with <code>grid()</code>, never down, so content never clips.</li>
+  </ul>
+</section>
+
+<section id="radius">
+  <h2>Radius &amp; stroke</h2>
+  <div class="demo radii">
+    <div style="border-radius:var(--radius-xs)">xs · 2</div>
+    <div style="border-radius:var(--radius-sm)">sm · 6</div>
+    <div style="border-radius:var(--radius-md)">md · 8</div>
+    <div style="border-radius:var(--radius-lg)">lg · 16</div>
+  </div>
+  <div class="table-wrap"><table>
+    <tr><th>Token</th><th>Value</th><th>Used for</th></tr>
+    <tr><td>radius-xs</td><td>2px</td><td>Chips, tags, tabs, small badges</td></tr>
+    <tr><td>radius-sm</td><td>6px</td><td>Nodes (<code>--ondine-radius</code>), toolbar and player buttons</td></tr>
+    <tr><td>radius-md</td><td>8px</td><td>Player, DBML table, journey hit area</td></tr>
+    <tr><td>radius-lg</td><td>16px</td><td>DBML group frame</td></tr>
+  </table></div>
+  <p>Stroke: <code>--ondine-stroke: 1px</code> by default; the selected node is 1.6px; the playing edge is 2px. Group frames use <code>stroke-dasharray: 5 4</code>.</p>
+</section>
+
+<section id="elevation">
+  <h2>Elevation &amp; motion</h2>
+  <div class="table-wrap"><table>
+    <tr><th>Token</th><th>Value</th><th>Used for</th></tr>
+    <tr><td>shadow-float</td><td><code>0 8px 24px rgba(45,49,66,.14)</code> (dark: <code>rgba(0,0,0,.6)</code>)</td><td>Floating step player</td></tr>
+    <tr><td>glow-focus</td><td><code>drop-shadow(0 0 4px accent @ .55–.6)</code></td><td>Focused node in the diagrams the extension draws itself</td></tr>
+    <tr><td>duration-fast</td><td>.15–.16s ease</td><td>Toolbar fade, node focus dimming, step state</td></tr>
+    <tr><td>dim-opacity</td><td>.18 (focus), .15 (waiting step)</td><td>Everything outside the focused node or the current step</td></tr>
+  </table></div>
+  <p>Comets along links use five layers (glow 10px, tail 2.6px, body 3px, head 3.4px, core 2.2px) in the accent color; on dark the middle of the streak heats toward white. Motion is limited to fullscreen mode.</p>
+</section>
+
+<section id="states">
+  <h2>States</h2>
+  <p>Every control and node moves through the same states, and each state takes its color from a token. Values are light / dark.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Surface</th><th>Normal</th><th>Hover</th><th>Active (pressed)</th><th>Focus-visible</th><th>Disabled</th></tr>
+    <tr><td>Toolbar and player button</td><td>border rule-solid, fill node, icon muted</td><td>border accent, icon accent-text</td><td>fill accent-tint, border accent, icon accent-text</td><td>2px link outline, 1px offset</td><td>opacity .5, no pointer events</td></tr>
+    <tr><td>Zoom level label</td><td>muted</td><td>accent-text</td><td>accent-text</td><td>none (not a button)</td><td>n/a</td></tr>
+    <tr><td>Node, cluster (fullscreen)</td><td>ink border, node fill</td><td>accent border</td><td>accent border, accent-tint fill, 1.6px</td><td>n/a</td><td>n/a</td></tr>
+    <tr><td>Node drawn by a renderer</td><td>no glow</td><td>glow 3px, accent at .35</td><td>glow 4px, accent at .55</td><td>n/a</td><td>n/a</td></tr>
+    <tr><td>Selected node, playing step</td><td colspan="5">accent border 1.6px, 10% accent fill; everything outside the focus drops to .18 opacity (waiting steps .15)</td></tr>
+    <tr><td>Timeline period</td><td>no ring</td><td>ink ring</td><td>n/a</td><td>n/a</td><td>waiting: .12 opacity</td></tr>
+    <tr><td>Link from the focused node</td><td colspan="5">flow-out: #eb6c36 / #79b1f9</td></tr>
+    <tr><td>Link into the focused node</td><td colspan="5">flow-in: #2e5aa8 / #dcaf61</td></tr>
+    <tr><td>Lost message streak</td><td colspan="5">danger: #c0401f / #f07f77</td></tr>
+  </table></div>
+  <p>Hover and press on nodes apply only in fullscreen, where a node can be clicked. Color alone never carries a state: stroke width, glow and dimming change with it.</p>
+</section>
+
+<section id="components">
+  <h2>Components</h2>
+  <h3>Node</h3>
+  <div class="demo">
+    <span class="node-demo">Default node</span>
+    <span class="node-demo sel">Selected node</span>
+    <p style="margin-top:12px;margin-bottom:0">Size comes from Ondine or the renderer. Radius 6, 1px ink border. Selected: accent border at 1.6px and a 10% accent fill. The demo padding is only for this page.</p>
+  </div>
+  <h3>Toolbar button</h3>
+  <div class="demo">
+    <button class="btn-demo" type="button" aria-label="Zoom in">+</button>
+    <button class="btn-demo" type="button" aria-label="Zoom out">−</button>
+    <button class="btn-demo" type="button" aria-label="Fullscreen">⛶</button>
+    <p style="margin-top:12px;margin-bottom:0">28×28, 1px rule border, radius 6, gap 4, inset 8 (16 in fullscreen). Hidden until the code block is hovered or focused; hover swaps border and icon to accent; icons are 14px at 1.4 stroke.</p>
+  </div>
+  <h3>Step player</h3>
+  <div class="demo">
+    <span class="player-demo"><button class="btn-demo" type="button" aria-label="Previous">‹</button><span class="count">3 / 12</span><span>Caption of the current step</span><button class="btn-demo" type="button" aria-label="Next">›</button></span>
+    <p style="margin-top:12px;margin-bottom:0">Centered, 16px above the bottom edge, padding 6×8, gap 8, radius 8, shadow-float. Caption is capped at 18rem.</p>
+  </div>
+  <h3>Chip / tag</h3>
+  <div class="demo"><span class="mono" style="display:inline-block;height:16px;line-height:14px;padding:0 6px;border:1px solid var(--accent);background:var(--accent-tint);color:var(--accent-text);border-radius:var(--radius-xs);font-size:8px;letter-spacing:.06em">v1.2.0</span></div>
+  <h3>Focus</h3>
+  <p>Interactive controls show a 2px <code>link</code> outline with 1px offset on keyboard focus (<code>:focus-visible</code>).</p>
+</section>
+
+<section id="theming">
+  <h2>Theming</h2>
+  <p>Light and dark are switched by the <code>_mermaid-dark</code> class on the page. The SVG reads the properties below; a theme change only rewrites them.</p>
+  <div class="table-wrap"><table>
+    <tr><th>Custom property</th><th>From token</th></tr>
+    <tr><td><code>--ondine-bg</code></td><td>paper</td></tr>
+    <tr><td><code>--ondine-fg</code></td><td>ink</td></tr>
+    <tr><td><code>--ondine-muted</code>, <code>--ondine-line</code></td><td>muted</td></tr>
+    <tr><td><code>--ondine-surface</code> / <code>-alt</code></td><td>node / paper-2</td></tr>
+    <tr><td><code>--ondine-border</code></td><td>ink</td></tr>
+    <tr><td><code>--ondine-accent</code>, <code>--ondine-critical</code></td><td>accent, danger</td></tr>
+    <tr><td><code>--ondine-stroke</code>, <code>--ondine-radius</code></td><td>1px, 6px</td></tr>
+    <tr><td><code>--ondine-font</code>, <code>--mmd-mono</code></td><td>sans, mono stacks</td></tr>
+    <tr><td><code>--mmd-soft</code>, <code>--mmd-paper2</code>, <code>--mmd-rule</code></td><td>soft, paper-2, rule-solid</td></tr>
+    <tr><td><code>--mmd-ink-rgb</code>, <code>--mmd-accent-tint</code></td><td>ink as r,g,b; accent-tint</td></tr>
+    <tr><td><code>--mmd-accent</code>, <code>--mmd-accent-rgb</code>, <code>--mmd-accent-text</code></td><td>accent, accent as r,g,b, accent-text</td></tr>
+    <tr><td><code>--mmd-link</code>, <code>--mmd-danger</code></td><td>link, danger</td></tr>
+    <tr><td><code>--mmd-flow-out</code>, <code>--mmd-flow-in</code></td><td>flow-out, flow-in</td></tr>
+    <tr><td><code>--mmd-ink</code>, <code>--mmd-muted</code>, <code>--mmd-node</code>, <code>--mmd-caption</code>, <code>--mmd-shadow</code></td><td>ink, muted, node, caption text, floating-control shadow</td></tr>
+    <tr><td><code>--ondine-series-1…8</code></td><td>accent, series 1–5, muted, soft</td></tr>
+  </table></div>
+</section>
+
+<section id="guidelines">
+  <h2>Guidelines</h2>
+  <div class="do-dont">
+    <div class="do"><h4>Do</h4><ul>
+      <li>Use tokens, never raw hex, in new renderers.</li>
+      <li>Use one accent per diagram for the thing that matters.</li>
+      <li>Snap sizes to the 4px grid with <code>grid()</code>.</li>
+      <li>Check every change in both themes.</li>
+      <li>Keep mono text to labels, chips and numbers.</li>
+    </ul></div>
+    <div class="dont"><h4>Don't</h4><ul>
+      <li>Use accent as the fill of large areas.</li>
+      <li>Add shadows to nodes; elevation is for floating controls only.</li>
+      <li>Mix radii inside one component.</li>
+      <li>Use series colors to mean status; use danger for errors.</li>
+      <li>Animate outside fullscreen, or ignore reduced-motion preferences.</li>
+    </ul></div>
+  </div>
+  <h3>Accessibility</h3>
+  <ul style="color:var(--muted)">
+    <li>Body text and node text use ink or muted on paper/node; small accent text uses accent-text.</li>
+    <li>Icon-only buttons carry an accessible name.</li>
+    <li>Selection and focus are shown by color, stroke width and dimming of the rest, so no state relies on color alone.</li>
+  </ul>
+  <h3>Source of truth</h3>
+  <p><code>content/mermaid.js</code> (tokens, Ondine variables) · <code>content/index.css</code> (toolbar, player, fullscreen, motion) · <code>content/draw.js</code> (grid) · <code>content/*.js</code> (per-diagram constants). <code>test/design-system.test.js</code> checks that every color on this page still exists in <code>tokens</code>.</p>
+</section>
+</main>
+</div>
+<script>
+(function () {
+  var root = document.documentElement
+  var btn = document.getElementById('theme')
+  btn.addEventListener('click', function () {
+    var dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
+    root.dataset.theme = dark ? 'light' : 'dark'
+  })
+})()
+</script>
+</body>
+</html>

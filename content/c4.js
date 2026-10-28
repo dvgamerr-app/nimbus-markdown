@@ -659,7 +659,7 @@ var c4 = (() => {
   // markers, one per line colour
   var markerOf = (cx, c) => `${cx.id}-c4-arrow-${cx.colors.indexOf(c)}`
   var markerDef = (cx, c) =>
-    `<marker id="${markerOf(cx, c)}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="${esc(c)}"/></marker>`
+    `<marker id="${markerOf(cx, c)}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="${esc(c)}" style="fill: context-stroke"/></marker>`
 
   var boundarySvg = ({t, mono}, b) => {
     var tagX = b.x + 12 + measure(b.caption, 8, mono, 500, 1.12) + 8

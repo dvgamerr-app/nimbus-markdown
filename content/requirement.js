@@ -474,9 +474,9 @@ var requirement = (() => {
     (high.length ? `, high risk: ${high.map((n) => n.name).join(', ')}` : '')
 
   var defsOf = (id, t) => `<defs><marker id="${id}-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse">` +
-    `<path d="M0,0L10,5L0,10z" fill="${t.muted}"/></marker>` +
+    `<path d="M0,0L10,5L0,10z" fill="${t.muted}" style="fill: context-stroke"/></marker>` +
     `<marker id="${id}-contains" viewBox="0 0 14 14" refX="1" refY="7" markerWidth="14" markerHeight="14" markerUnits="userSpaceOnUse" orient="auto">` +
-    `<circle cx="7" cy="7" r="6" fill="${t.paper}" stroke="${t.muted}"/><path d="M7,3V11M3,7H11" stroke="${t.muted}"/></marker></defs>`
+    `<circle cx="7" cy="7" r="6" fill="${t.paper}" stroke="${t.muted}" style="stroke: context-stroke"/><path d="M7,3V11M3,7H11" stroke="${t.muted}" style="stroke: context-stroke"/></marker></defs>`
 
   var drawLink = (l, s) => {
     // the line is drawn top down; the end that is the source gets the circle-plus, the target the arrow
