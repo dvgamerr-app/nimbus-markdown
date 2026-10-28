@@ -42,6 +42,14 @@ md.compilers['markdown-it'] = (() => {
     tasklists: 'Task lists\n- [x]\n- [ ]',
   }
 
+  // a table sits in a box of its own: the box scrolls a wide table and a theme frames it
+  var scrollTables = (md) => {
+    md.renderer.rules.table_open = (tokens, idx, options, env, self) =>
+      '<div class="table-scroll">' + self.renderToken(tokens, idx, options)
+    md.renderer.rules.table_close = (tokens, idx, options, env, self) =>
+      self.renderToken(tokens, idx, options) + '</div>'
+  }
+
   var ctor = ({storage: {state}}) => ({
     defaults,
     description,
@@ -60,6 +68,7 @@ md.compilers['markdown-it'] = (() => {
         .use(state['markdown-it'].sub ? mdit.sub : () => {})
         .use(state['markdown-it'].sup ? mdit.sup : () => {})
         .use(state['markdown-it'].tasklists ? mdit.tasklists : () => {})
+        .use(scrollTables)
         .render(markdown)
   })
 

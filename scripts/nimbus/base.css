@@ -367,48 +367,100 @@ body #_toc {
   content: none;
 }
 
-/* Tables */
-.markdown-theme table {
-  display: block;
-  width: max-content;
-  min-width: 100%;
+/* Tables, in the diagram-design skin: a hairline frame, a header row of tracked mono eyebrows, the first column in
+   semibold as the row name, hairline rules between rows and a faint wash under the pointer. Everything sits on the 4px
+   grid. The compiler wraps every table in .table-scroll, which keeps the frame and scrolls a wide table */
+.markdown-theme .table-scroll {
   max-width: 100%;
+  margin: var(--nb-space-6) 0;
   overflow-x: auto;
+  background: var(--nb-card);
+  border: 1px solid var(--nb-border-strong);
+  border-radius: var(--nb-radius-md);
+}
+.markdown-theme table {
+  display: table;
+  width: 100%;
+  margin: 0;
   text-align: left;
+  border: 0;
   border-collapse: separate;
   border-spacing: 0;
-  border: 1px solid var(--nb-border);
-  border-radius: var(--nb-radius-lg);
   font-size: 0.875rem;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 .markdown-theme th,
 .markdown-theme td {
-  padding: 0.625rem var(--nb-space-3);
+  padding: var(--nb-space-3) var(--nb-space-4);
   text-align: left;
   vertical-align: top;
   border: 0;
   border-bottom: 1px solid var(--nb-border);
   background: none;
 }
-.markdown-theme th {
+.markdown-theme thead th {
+  padding-top: var(--nb-space-3);
+  padding-bottom: var(--nb-space-3);
+  color: var(--nb-muted-foreground);
   background: var(--nb-muted);
+  border-bottom: 1px solid var(--nb-border-strong);
+  font-family: var(--nb-font-mono);
+  /* Thai and other scripts have no mono face and no case, so they borrow the size and weight that keep them legible */
+  font-size: 0.75rem;
   font-weight: 600;
-  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  line-height: 1.25;
+  text-transform: uppercase;
   white-space: nowrap;
+}
+/* the header cells and the first column, the row name, stay on one line and are as wide as their content. A column of
+   prose between or after them wraps, so a long description never forces a table wider than the page; the last column
+   takes the room the others leave so the header and the rules run the full width */
+.markdown-theme th:not(:last-child),
+.markdown-theme td:first-child:not(:last-child) {
+  width: 1%;
+  white-space: nowrap;
+}
+.markdown-theme td:not(:first-child) {
+  min-width: 8rem;
+}
+.markdown-theme td:last-child:not(:first-child) {
+  min-width: 14rem;
+}
+/* the first column names the row */
+.markdown-theme tbody td:first-child {
+  color: var(--nb-foreground);
+  font-weight: 600;
+}
+.markdown-theme tbody td:not(:first-child) {
+  color: color-mix(in oklch, var(--nb-foreground) 82%, var(--nb-background));
+}
+.markdown-theme tbody td strong {
+  color: var(--nb-foreground);
+}
+/* technical content is mono: code in a cell sits on the line without a box of its own */
+.markdown-theme td > code,
+.markdown-theme th > code {
+  padding: 0.0625rem var(--nb-space-1);
+  font-size: 0.8125rem;
 }
 .markdown-theme tr {
   background: none !important;
   border: 0;
 }
-.markdown-theme tr:last-child td {
+.markdown-theme tbody tr {
+  transition: background-color 0.12s ease;
+}
+.markdown-theme tbody tr:hover {
+  background: color-mix(in oklch, var(--nb-foreground) 3%, transparent) !important;
+}
+.markdown-theme tbody tr:last-child td {
   border-bottom: 0;
 }
-.markdown-theme thead tr:first-child th:first-child {
-  border-top-left-radius: var(--nb-radius-lg);
-}
-.markdown-theme thead tr:first-child th:last-child {
-  border-top-right-radius: var(--nb-radius-lg);
+@media (prefers-reduced-motion: reduce) {
+  .markdown-theme tbody tr {
+    transition: none;
+  }
 }
 
 /* Media */
