@@ -646,7 +646,7 @@ var dbml = (() => {
       `<svg xmlns="http://www.w3.org/2000/svg" id="${id}" width="100%" style="max-width: ${width}px;" viewBox="0 0 ${width} ${height}" ` +
       `role="graphics-document document" aria-roledescription="dbml" font-family="${esc(sans)}">`,
       `<defs>${[['a', t.muted], ['d', danger]].map(([k, color]) =>
-        `<marker id="${id}-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="${color}"/></marker>`).join('')}</defs>`
+        `<marker id="${id}-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="${color}" style="fill: context-stroke"/></marker>`).join('')}</defs>`
     ]
     units.filter((u) => u.group).forEach((u) => {
       out.push(`<g class="dbml-group"><rect x="${num(u.x)}" y="${num(u.y)}" width="${num(u.w)}" height="${num(u.h)}" rx="16" fill="rgba(${t.inkRgb},0.03)" stroke="${t.soft}" stroke-dasharray="5 4"/>` +
