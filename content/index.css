@@ -97,8 +97,8 @@ pre#_markdown,
   border: none !important;
   padding: 20px !important;
   min-width: auto !important;
-  /* the size of the option is a ceiling: a page narrower than it (or a sidebar that takes room) never scrolls
-     sideways, only a table, a code block or a diagram wider than the column does */
+  /* the size of the option is a ceiling: a page narrower than it (or a sidebar that takes room) never scrolls */
+  /* sideways, only a table, a code block or a diagram wider than the column does */
   max-width: 100% !important;
 }
 
