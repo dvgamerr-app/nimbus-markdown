@@ -326,7 +326,7 @@ var dbml = (() => {
   var {esc, num, measure} = draw
 
   // the card metrics, in svg units
-  var PAD = 14
+  var PAD = 16
   var HEAD = 38
   var ROW = 28
   var MORE = 26
@@ -338,7 +338,7 @@ var dbml = (() => {
   var RADIUS = 8
   var MARGIN = 24
   var GAP = 56
-  var GROUP_PAD = 22
+  var GROUP_PAD = 24
   var GROUP_TOP = 38
 
   // a rect with its top and/or bottom corners rounded
@@ -649,7 +649,7 @@ var dbml = (() => {
         `<marker id="${id}-${k}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="${color}"/></marker>`).join('')}</defs>`
     ]
     units.filter((u) => u.group).forEach((u) => {
-      out.push(`<g class="dbml-group"><rect x="${num(u.x)}" y="${num(u.y)}" width="${num(u.w)}" height="${num(u.h)}" rx="14" fill="rgba(${t.inkRgb},0.03)" stroke="${t.soft}" stroke-dasharray="5 4"/>` +
+      out.push(`<g class="dbml-group"><rect x="${num(u.x)}" y="${num(u.y)}" width="${num(u.w)}" height="${num(u.h)}" rx="16" fill="rgba(${t.inkRgb},0.03)" stroke="${t.soft}" stroke-dasharray="5 4"/>` +
         `<text x="${num(u.x + GROUP_PAD)}" y="${num(u.y + 20)}" dominant-baseline="central" font-family="${mono}" font-size="10" letter-spacing="1.5" fill="${t.soft}">${esc(u.label.toUpperCase())}</text></g>`)
     })
     // a link is a relationshipLine, so the hover and focus styling of the viewer applies to it as to an er relationship;

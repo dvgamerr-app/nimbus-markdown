@@ -14,6 +14,8 @@ var mmd = (() => {
       rule: 'rgba(45,49,66,0.12)', ruleSolid: '#bfc0c0',
       accent: '#eb6c36', accentTint: 'rgba(235,108,54,0.08)', link: '#2e5aa8',
       accentText: '#bf4520', danger: '#c0401f', dark: false,
+      // links out of the focused node, links into it, and the lift under a floating control
+      flowOut: '#eb6c36', flowIn: '#2e5aa8', shadow: 'rgba(45,49,66,0.14)', caption: '#5a6580',
       series: ['#7c8f6f', '#5e7a9b', '#b8915a', '#9c6b50', '#6e6479'],
       inkRgb: '45,49,66', accentRgb: '235,108,54', mutedRgb: '79,93,117',
       syn: {vis: '#9a6e3a', fn: '#dd4a68', type: '#dd4a68', keyword: '#07a', punct: '#999', constant: '#905'}
@@ -22,8 +24,9 @@ var mmd = (() => {
       paper: '#020202', paper2: '#0f0f0f', node: '#0f0f0f',
       ink: '#f5f5f5', muted: '#dedede', soft: '#a3a3a3',
       rule: 'rgba(245,245,245,0.12)', ruleSolid: '#404040',
-      accent: '#79b1f9', accentTint: 'rgba(121,177,249,0.10)', link: '#79b1f9',
-      accentText: '#79b1f9', danger: '#f07f77', dark: true,
+      accent: '#79b1f9', accentTint: 'rgba(121,177,249,0.10)', link: '#dcaf61',
+      accentText: '#a8cdfc', danger: '#f07f77', dark: true,
+      flowOut: '#79b1f9', flowIn: '#dcaf61', shadow: 'rgba(0,0,0,0.6)', caption: '#a3a3a3',
       series: ['#69ba7c', '#79b1f9', '#dcaf61', '#f07f77', '#a3a3a3'],
       inkRgb: '245,245,245', accentRgb: '121,177,249', mutedRgb: '222,222,222',
       syn: {vis: '#f8f8f2', fn: '#e6db74', type: '#e6db74', keyword: '#66d9ef', punct: '#f8f8f2', constant: '#f92672'}
@@ -54,6 +57,18 @@ var mmd = (() => {
     '--mmd-rule': t.ruleSolid,
     '--mmd-ink-rgb': t.inkRgb,
     '--mmd-accent-tint': t.accentTint,
+    '--mmd-accent': t.accent,
+    '--mmd-accent-rgb': t.accentRgb,
+    '--mmd-accent-text': t.accentText,
+    '--mmd-link': t.link,
+    '--mmd-danger': t.danger,
+    '--mmd-flow-out': t.flowOut,
+    '--mmd-flow-in': t.flowIn,
+    '--mmd-ink': t.ink,
+    '--mmd-muted': t.muted,
+    '--mmd-node': t.node,
+    '--mmd-caption': t.caption,
+    '--mmd-shadow': t.shadow,
     ...[t.accent, ...t.series, t.muted, t.soft].reduce((all, color, i) => (all[`--ondine-series-${i + 1}`] = color, all), {})
   })
 
@@ -84,11 +99,70 @@ var mmd = (() => {
   }
 
   // fullscreen fills the browser viewport only, not the screen
-  var fullscreen = (pre, active) => {
+  var setFullscreen = (pre, active) => {
+    if (active === pre.classList.contains('mmd-fullscreen')) return
     pre.classList.toggle('mmd-fullscreen', active)
     document.documentElement.classList.toggle('_mmd-fullscreen', active)
     pre._mmdFullscreen && pre._mmdFullscreen()
   }
+
+  // the address says which diagram is fullscreen: ?diagram=<name>, so back and forward step in and out of it, a
+  // reload keeps it and the link can be shared. A diagram is named after the heading above it, the anchor stays
+  var PARAM = 'diagram'
+  var names = () => {
+    var found = new Map()
+    var heading = 'diagram'
+    var used = {}
+    // a generated name never takes the id of a heading, that anchor must stay what it says
+    var ids = new Set(Array.from(document.querySelectorAll(':is(h1, h2, h3, h4, h5, h6)[id]'), (el) => el.id))
+    var taken = new Set()
+    document.querySelectorAll(':is(h1, h2, h3, h4, h5, h6)[id], pre').forEach((el) => {
+      if (el.tagName.toLowerCase() !== 'pre') return void (heading = el.id)
+      if (!el.querySelector(':scope > code.mermaid')) return
+      var name
+      do {
+        used[heading] = (used[heading] || 0) + 1
+        name = used[heading] > 1 ? heading + '-' + used[heading] : heading
+      } while (taken.has(name) || (name !== heading && ids.has(name)))
+      taken.add(name)
+      found.set(el, name)
+    })
+    return found
+  }
+  var addressOf = (name) => {
+    var url = new URL(location.href)
+    name ? url.searchParams.set(PARAM, name) : url.searchParams.delete(PARAM)
+    return url.href
+  }
+  // show what the address asks for
+  // a page that may not write its address keeps its fullscreen by hand, the address must not close it
+  var addressWorks = true
+  var follow = () => {
+    if (!addressWorks) return
+    var wanted = new URL(location.href).searchParams.get(PARAM)
+    names().forEach((name, pre) => pre._mmdFullscreen && setFullscreen(pre, name === wanted))
+  }
+  var write = (push, name) => {
+    try {
+      // a step this page pushed is marked, so leaving can take it back off the history
+      push ? history.pushState({nimbusOpened: name}, '', addressOf(name)) : history.replaceState(null, '', addressOf(name))
+    }
+    catch (err) {
+      // a page that may not write its address still goes fullscreen, only without the history
+      addressWorks = false
+      return false
+    }
+    return true
+  }
+  var fullscreen = (pre, active) => {
+    var name = names().get(pre)
+    if (active) return write(true, name) ? follow() : setFullscreen(pre, true)
+    // leaving: step back when the page came here by opening it, otherwise (a shared link, a reload) drop the param
+    // only the entry this diagram opened is taken back, an anchor followed since then is a different entry
+    if (name && history.state && history.state.nimbusOpened === name) return history.back()
+    write(false, null) ? follow() : setFullscreen(pre, false)
+  }
+  window.addEventListener('popstate', follow)
   document.addEventListener('keydown', (e) => {
     var pre = document.querySelector('pre.mmd-fullscreen')
     if (!pre || e.ctrlKey || e.metaKey || e.altKey) return
@@ -97,10 +171,9 @@ var mmd = (() => {
   })
 
   var NS = 'http://www.w3.org/2000/svg'
-  var dark = () => document.documentElement.classList.contains('_mermaid-dark')
   var calm = () => !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   // links out of the focused node are orange, links into it are blue
-  var lit = (dir) => (dir === 'in' ? (dark() ? '#79b1f9' : '#2e5aa8') : dark() ? '#79b1f9' : '#eb6c36')
+  var lit = (dir) => `var(--mmd-flow-${dir === 'in' ? 'in' : 'out'})`
 
   // the comet: a streak that travels along a line in its drawn direction, one-shot for a playing step, looping
   // while a node stays focused. Stacked dashes share one head but differ in length, so the streak thins out behind
@@ -278,6 +351,78 @@ var mmd = (() => {
       })
     return {nodes, byId, edges: edges.filter((e) => e && byId.has(e.from) && byId.has(e.to))}
   }
+
+  // Ondine bends a link with a cubic curve where it changes lanes: redraw every link as straight runs that turn at
+  // right angles, each corner rounded. A curve keeps the direction it leaves and arrives in, so the arrowhead still fits
+  var CORNER = 8
+  var close = (a, b) => Math.abs(a - b) < 0.01
+  var elbow = (from, c1, c2, to) => {
+    // the way the curve leaves and arrives: from its control points, or from the far end when a control point sits
+    // on its own end
+    var leave = !close(c1[0], from[0]) || !close(c1[1], from[1]) ? c1 : !close(c2[0], from[0]) || !close(c2[1], from[1]) ? c2 : to
+    var reach = !close(c2[0], to[0]) || !close(c2[1], to[1]) ? c2 : !close(c1[0], to[0]) || !close(c1[1], to[1]) ? c1 : from
+    var across = (a, b) => Math.abs(b[0] - a[0]) >= Math.abs(b[1] - a[1])
+    var out = across(from, leave)
+    var into = across(reach, to)
+    if (out && into) {
+      var x = (from[0] + to[0]) / 2
+      return [[x, from[1]], [x, to[1]], to]
+    }
+    if (!out && !into) {
+      var y = (from[1] + to[1]) / 2
+      return [[from[0], y], [to[0], y], to]
+    }
+    return [out ? [to[0], from[1]] : [from[0], to[1]], to]
+  }
+  // the points of a path written with M, L, H, V and C, or null for anything else (an arc stays as it is drawn)
+  var pointsOf = (d) => {
+    var points = []
+    // e is the exponent of a number, not a command; a sign or a second dot also starts a number
+    var parts = d.match(/[A-DF-Za-df-z][^A-DF-Za-df-z]*/g) || []
+    for (var part of parts) {
+      var cmd = part[0]
+      var n = (part.slice(1).match(/[-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) || []).map(Number)
+      if (n.some(Number.isNaN)) return null
+      var last = points[points.length - 1]
+      if (cmd === 'M' || cmd === 'L') {
+        for (var i = 0; i + 1 < n.length; i += 2) points.push([n[i], n[i + 1]])
+      }
+      else if (cmd === 'H' && last) n.forEach((x) => points.push([x, points[points.length - 1][1]]))
+      else if (cmd === 'V' && last) n.forEach((y) => points.push([points[points.length - 1][0], y]))
+      else if (cmd === 'C' && last) {
+        for (var j = 0; j + 5 < n.length; j += 6) {
+          points.push(...elbow(points[points.length - 1], [n[j], n[j + 1]], [n[j + 2], n[j + 3]], [n[j + 4], n[j + 5]]))
+        }
+      }
+      else return null
+    }
+    // drop repeated points and the middle of straight runs
+    return points.filter((p, k) => !k || !close(p[0], points[k - 1][0]) || !close(p[1], points[k - 1][1]))
+      .filter((p, k, all) => {
+        var a = all[k - 1]
+        var b = all[k + 1]
+        return !a || !b || !((close(a[0], p[0]) && close(p[0], b[0])) || (close(a[1], p[1]) && close(p[1], b[1])))
+      })
+  }
+  var r1 = (v) => Math.round(v * 100) / 100
+  var roundedPath = (points) => points.reduce((d, cur, i) => {
+    if (!i) return 'M' + r1(cur[0]) + ',' + r1(cur[1])
+    var next = points[i + 1]
+    if (!next) return d + 'L' + r1(cur[0]) + ',' + r1(cur[1])
+    var prev = points[i - 1]
+    var l1 = Math.hypot(cur[0] - prev[0], cur[1] - prev[1])
+    var l2 = Math.hypot(next[0] - cur[0], next[1] - cur[1])
+    // a corner takes at most half of either run, so two corners never overlap
+    var r = Math.min(CORNER, l1 / 2, l2 / 2)
+    if (!r) return d + 'L' + r1(cur[0]) + ',' + r1(cur[1])
+    return d +
+      'L' + r1(cur[0] - (cur[0] - prev[0]) * r / l1) + ',' + r1(cur[1] - (cur[1] - prev[1]) * r / l1) +
+      'Q' + r1(cur[0]) + ',' + r1(cur[1]) + ' ' + r1(cur[0] + (next[0] - cur[0]) * r / l2) + ',' + r1(cur[1] + (next[1] - cur[1]) * r / l2)
+  }, '')
+  var straighten = (svg) => svg.querySelectorAll('.ondine-edge > path:not(.ondine-marker)').forEach((line) => {
+    var points = pointsOf(line.getAttribute('d') || '')
+    points && points.length > 1 && line.setAttribute('d', roundedPath(points))
+  })
 
   var tint = (edge, dir) => {
     var style = edge.el.style
@@ -509,7 +654,7 @@ var mmd = (() => {
       drawn = []
     }
     var travel = (step) => step.lines.forEach(({line, ways, lost}) => ways.forEach((way) => {
-      var color = lost ? (dark() ? '#f07f77' : '#c0401f') : dark() ? '#79b1f9' : '#eb6c36'
+      var color = lost ? 'var(--mmd-danger)' : 'var(--mmd-flow-out)'
       var streak = flow(line, 'out', {reverse: way < 0, over: TRAVEL, color})
       streak.isConnected && drawn.push(streak)
     }))
@@ -749,6 +894,8 @@ var mmd = (() => {
     var t = dark ? tokens.dark : tokens.light
     document.documentElement.classList.toggle('_mermaid-dark', dark)
     var vars = ondineVars(t)
+    // the toolbar and the player sit beside the diagram, not in it: they read the same tokens from the page
+    Object.keys(vars).forEach((name) => name.startsWith('--mmd-') && document.documentElement.style.setProperty(name, vars[name]))
 
     // render from textContent: innerHTML would decode entities in the source
     var jobs = Array.from(document.querySelectorAll('code.mermaid')).map((node) => {
@@ -771,6 +918,8 @@ var mmd = (() => {
       return drawn.then(({svg, error}) => {
         if (error) throw new Error(error)
         node.innerHTML = svg
+        var compiled = node.querySelector('svg.ondine')
+        compiled && straighten(compiled)
         node.setAttribute('data-processed', 'true')
       }).catch((err) => {
         node.textContent = text + '\n\n' + (err && err.message || err)
@@ -786,6 +935,8 @@ var mmd = (() => {
         var pre = diagram.closest('pre')
         pre && pre.querySelector(':scope > code.mermaid') && toolbar(pre, panzoom)
       })
+      // a shared link or a reload asks for a diagram by its name
+      follow()
     }).finally(() => {
       running = false
       if (queued) {
