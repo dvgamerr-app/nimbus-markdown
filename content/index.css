@@ -144,7 +144,7 @@ body._toc-right { padding-right: 18rem !important; }
 #_toc {
   --toc-foreground: oklch(0.21 0 0);
   --toc-muted-foreground: oklch(0.556 0 0);
-  --toc-border: oklch(0.935 0 0);
+  --toc-border: oklch(0.87 0 0);
   --toc-primary: oklch(0.145 0 0);
   position: fixed;
   top: 0; bottom: 0; right: 0;
@@ -164,7 +164,7 @@ body._toc-right { padding-right: 18rem !important; }
 ._color-dark #_toc {
   --toc-foreground: oklch(0.97 0 0);
   --toc-muted-foreground: oklch(0.556 0 0);
-  --toc-border: oklch(0.269 0 0);
+  --toc-border: oklch(0.42 0 0);
   --toc-primary: oklch(0.9 0 0);
 }
 #_toc ._toc-title {
