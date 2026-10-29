@@ -50,3 +50,12 @@ bun run build:themes         # only rebuild dist/nimbus-markdown/themes
 | @material/switch    | 0.36.1
 | @material/tabs      | 0.37.1
 | @material/textfield | 0.37.1
+
+## IDE extensions
+
+```bash
+bun run build:vsix   # dist/nimbus-markdown-vscode.vsix, from vscode/
+dotnet build visualstudio/NimbusMarkdown/NimbusMarkdown.csproj -c Release   # Visual Studio, windows only
+```
+
+A `v*` tag builds both and attaches the `.vsix` files to the GitHub release. With a trusted publishing policy on the VS Code Marketplace the tag also publishes the VS Code extension there (no token), and with the `OVSX_PAT` secret set it publishes to Open VSX.

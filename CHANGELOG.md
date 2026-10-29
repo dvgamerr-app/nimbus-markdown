@@ -2,6 +2,7 @@
 # Change Log
 
 ## Unreleased
+- add a VS Code extension (opens `.md` files rendered with the same scripts and themes as the Chrome extension, with a button to switch to the plain text) and a Visual Studio extension scaffold; the release workflow builds both and attaches the `.vsix` files
 - draw Mermaid diagrams with Ondine instead of Mermaid: the background compiles each diagram to SVG with WebAssembly, the colours follow the Nimbus light and dark themes through `--ondine-*` custom properties
 - keep the self-drawn journey, timeline, gantt, pie, quadrant, requirement, git graph, c4 and mindmap renderers, and skin the Ondine diagrams in the same diagram-design style, node classes like `A:::focal` included
 - fullscreen motion on Ondine: hover a node to light its links, click it for comets running blue into it and orange out of it, play sequences, state machines, journeys and timelines step by step (P, [ and ])
