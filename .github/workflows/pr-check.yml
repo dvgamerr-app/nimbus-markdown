@@ -20,7 +20,7 @@ env:
 jobs:
   ci:
     name: Build and Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -57,7 +57,7 @@ jobs:
 
   qlty:
     name: Qlty Analysis
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     outputs:
       details: ${{ steps.details.outputs.text }}
@@ -116,7 +116,7 @@ jobs:
               output.write('text<<' + delimiter + '\n' + report + '\n' + delimiter + '\n')
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
               summary.write('## 💎 Qlty Analysis\n\n' + report)
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ always() }}
         with:
           name: qlty-reports
@@ -139,7 +139,7 @@ jobs:
     name: PR Gate
     if: ${{ always() }}
     needs: [ci, visualstudio, qlty]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Require all checks to pass
@@ -156,7 +156,7 @@ jobs:
     name: PR Report
     if: ${{ always() }}
     needs: [ci, qlty, gate]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read

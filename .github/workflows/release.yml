@@ -19,7 +19,7 @@ env:
 jobs:
   build:
     name: Build and Pack
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -53,7 +53,7 @@ jobs:
           bun run build:zip
           cp dist/nimbus-markdown-chrome.zip "release/nimbus-markdown-chrome-$TAG.zip"
           cp dist/nimbus-markdown-firefox.zip "release/nimbus-markdown-firefox-$TAG.zip"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nimbus-markdown-${{ github.ref_name }}
           path: release/*.zip
@@ -62,7 +62,7 @@ jobs:
 
   vscode:
     name: VS Code Extension
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -108,7 +108,7 @@ jobs:
         run: |
           mkdir -p release
           cp dist/nimbus-markdown-vscode.vsix "release/nimbus-markdown-vscode-$TAG.vsix"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vscode-${{ github.ref_name }}
           path: release/*.vsix
@@ -150,7 +150,7 @@ jobs:
           vsix=$(find visualstudio/NimbusMarkdown/bin -name '*.vsix' | head -n 1)
           [ -n "$vsix" ] || { echo "no .vsix was built"; exit 1; }
           cp "$vsix" "release/nimbus-markdown-visualstudio-$TAG.vsix"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: visualstudio-${{ github.ref_name }}
           path: release/*.vsix
@@ -161,7 +161,7 @@ jobs:
     name: GitHub Release
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
     needs: [build, vscode, visualstudio]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: write
