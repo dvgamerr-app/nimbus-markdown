@@ -1,0 +1,125 @@
+{
+  "name": "nimbus-markdown",
+  "displayName": "Nimbus Markdown",
+  "description": "Opens Markdown files rendered as Nimbus, with Mermaid diagrams, math, syntax highlighting and a table of contents, matching the Nimbus Markdown browser extension.",
+  "version": "0.0.0",
+  "publisher": "dvgamerr",
+  "license": "MIT",
+  "homepage": "https://dvgamerr.app/nimbus-markdown",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dvgamerr-app/nimbus-markdown.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dvgamerr-app/nimbus-markdown/issues"
+  },
+  "icon": "icon.png",
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "markdown",
+    "mermaid",
+    "preview",
+    "diagram"
+  ],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "main": "./extension.js",
+  "activationEvents": [],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": true
+  },
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "nimbusMarkdown.preview",
+        "displayName": "Nimbus Markdown",
+        "selector": [
+          {
+            "filenamePattern": "*.md"
+          },
+          {
+            "filenamePattern": "*.markdown"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "nimbusMarkdown.showSource",
+        "title": "Nimbus Markdown: Show Source",
+        "icon": "$(code)"
+      },
+      {
+        "command": "nimbusMarkdown.showPreview",
+        "title": "Nimbus Markdown: Show Preview",
+        "icon": "$(open-preview)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "nimbusMarkdown.showSource",
+          "group": "navigation",
+          "when": "activeCustomEditorId == 'nimbusMarkdown.preview'"
+        },
+        {
+          "command": "nimbusMarkdown.showPreview",
+          "group": "navigation",
+          "when": "activeEditor == 'workbench.editors.files.textFileEditor' && resourceLangId == markdown"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Nimbus Markdown",
+      "properties": {
+        "nimbusMarkdown.theme": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "nimbus",
+            "nimbus-dark",
+            "github",
+            "github-dark",
+            "almond",
+            "awsm",
+            "axist",
+            "bamboo",
+            "bullframe",
+            "holiday",
+            "kacit",
+            "latex",
+            "marx",
+            "mini",
+            "modest",
+            "new",
+            "no-class",
+            "pico",
+            "retro",
+            "sakura",
+            "sakura-vader",
+            "semantic",
+            "simple",
+            "style-sans",
+            "style-serif",
+            "stylize",
+            "superstylin",
+            "tacit",
+            "vanilla",
+            "water",
+            "water-dark",
+            "writ"
+          ],
+          "description": "Theme of the rendered page. auto uses nimbus or nimbus-dark to match the VS Code color theme."
+        }
+      }
+    }
+  }
+}

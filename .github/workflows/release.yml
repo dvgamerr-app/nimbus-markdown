@@ -60,10 +60,107 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
+  vscode:
+    name: VS Code Extension
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # trusted publishing: vsce swaps the GitHub OIDC token for a Marketplace token
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+          no-cache: true
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      # vsce takes major.minor.patch only, so a shorter tag is padded with zeros.
+      - name: Stamp the tag version into the extension
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          [[ "$version" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]] || { echo "tag $TAG is not a VS Code version (1-3 dot separated numbers)"; exit 1; }
+          while [[ "$version" != *.*.* ]]; do version="$version.0"; done
+          sed -i -E "s/(\"version\"[[:space:]]*:[[:space:]]*\")[^\"]*\"/\1$version\"/" vscode/package.json
+          grep -n '"version"' vscode/package.json
+      - name: Pack the vsix
+        run: bun run build:vsix
+      # No token: the Marketplace needs a trusted publishing policy for this repo and workflow. A failure here
+      # must not block the GitHub release, so it only warns.
+      - name: Publish to the VS Code Marketplace
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        continue-on-error: true
+        run: bunx vsce publish --packagePath dist/nimbus-markdown-vscode.vsix --oidc
+      - name: Publish to Open VSX
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -n "$OVSX_PAT" ]; then bunx ovsx publish dist/nimbus-markdown-vscode.vsix --pat "$OVSX_PAT"; else echo "OVSX_PAT is not set, skipping Open VSX"; fi
+      - name: Name the vsix after the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p release
+          cp dist/nimbus-markdown-vscode.vsix "release/nimbus-markdown-vscode-$TAG.vsix"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: vscode-${{ github.ref_name }}
+          path: release/*.vsix
+          retention-days: 30
+          if-no-files-found: error
+
+  visualstudio:
+    name: Visual Studio Extension
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      # The .NET 8 SDK ships on the windows runner image.
+      - name: Resolve the version
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="0.0.0"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${TAG#v}"
+            [[ "$version" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]] || { echo "tag $TAG is not a version (1-4 dot separated numbers)"; exit 1; }
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+      - name: Build the vsix
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: dotnet build visualstudio/NimbusMarkdown/NimbusMarkdown.csproj -c Release -p:Version="$VERSION"
+      - name: Name the vsix after the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p release
+          vsix=$(find visualstudio/NimbusMarkdown/bin -name '*.vsix' | head -n 1)
+          [ -n "$vsix" ] || { echo "no .vsix was built"; exit 1; }
+          cp "$vsix" "release/nimbus-markdown-visualstudio-$TAG.vsix"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: visualstudio-${{ github.ref_name }}
+          path: release/*.vsix
+          retention-days: 30
+          if-no-files-found: error
+
   publish:
     name: GitHub Release
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-    needs: build
+    needs: [build, vscode, visualstudio]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -71,10 +168,11 @@ jobs:
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: nimbus-markdown-${{ github.ref_name }}
+          pattern: '*-${{ github.ref_name }}'
+          merge-multiple: true
           path: release
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" release/*.zip --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes
+        run: gh release create "$TAG" release/* --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes
